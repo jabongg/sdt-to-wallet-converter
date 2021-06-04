@@ -63,43 +63,4 @@ public class CSVReader {
         inputWorkbook.close();
         fileInputStream.close();
     }
-
-    public  static void createFormattedCsv(Workbook workbook) throws IOException {
-
-        Workbook formattedWorkbook = new XSSFWorkbook();
-        Sheet formattedSheet = formattedWorkbook.createSheet();
-
-
-        FileOutputStream fileOutputStream = new FileOutputStream("/Users/jpatel10/Desktop/Converter/formatted.xlsx");
-        formattedWorkbook.write(fileOutputStream);
-        formattedWorkbook.close();
-        workbook.close();
-    }
-
-
-    public static void writeCsv() throws IOException {
-        File excel = new File("/Users/jpatel10/Desktop/Converter/formatted.xlsx");
-        FileOutputStream fileOutputStream = new FileOutputStream(excel);
-        XSSFWorkbook workbook = new XSSFWorkbook();
-        XSSFSheet sheet = workbook.getSheetAt(0);
-
-        // iterate in rows
-        Iterator<Row> rowsIterator = sheet.iterator();
-        while (rowsIterator.hasNext()) {
-            //get the row
-            Row row = rowsIterator.next();
-
-            // iterate cells from the current row
-            Iterator<Cell> cellIterator = row.cellIterator();
-            while (cellIterator.hasNext()) {
-                Cell cell = cellIterator.next();
-                System.out.println(cell.toString() + " ;");
-
-            }
-            System.out.println();
-        }
-
-        workbook.close();
-        //fileInputStream.close();
-    }
 }
