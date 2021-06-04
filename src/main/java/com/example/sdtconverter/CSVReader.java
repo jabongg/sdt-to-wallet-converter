@@ -52,7 +52,7 @@ public class CSVReader {
                 String[] inputDetails = inputStr.split("\\|");
                 for (String inputDetailCell : inputDetails) {
                     Cell outputCell = outputRow.createCell(outputCellCount++);
-                    outputCell.setCellValue(inputDetailCell);
+                    outputCell.setCellValue(trimQuotes(inputDetailCell));
                 }
             }
             System.out.println();
@@ -62,5 +62,9 @@ public class CSVReader {
         outputWorkbook.close();
         inputWorkbook.close();
         fileInputStream.close();
+    }
+
+    public static String trimQuotes(String str) {
+        return str.replace("\"", "");
     }
 }
