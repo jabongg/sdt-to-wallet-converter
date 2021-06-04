@@ -117,8 +117,10 @@ public class CSVReader {
         XSSFWorkbook sdtToWalletWorkbook = new XSSFWorkbook(fileInputStream);
         XSSFSheet sdtToWalletSheet = sdtToWalletWorkbook.getSheetAt(0);
 
+        //write queries created to a .sql file
+        File creditCardWalletIdSql = new File(customDir + "/credit-card-wallet-id.sql");
 
-        //TODO: read output file and create update query : read |accountid|cardTokenNumber|walletId|
+        // read output file and create update query : read |accountid|cardTokenNumber|walletId|
         // store the 3 headers indexes in a hashmap
 
         Map<String, Integer> sdtWalletHeadersMap = new HashMap<>();
@@ -193,6 +195,9 @@ public class CSVReader {
 
                 logger.info(cardWalletQueryBuilder.toString());
                 logger.info(companyQueryBuilder.toString());
+
+
+
             }
             }
         }
