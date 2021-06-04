@@ -1,8 +1,5 @@
 package com.example.sdtconverter;
 
-import org.apache.poi.hssf.usermodel.HSSFSheet;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.ss.formula.functions.Rows;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -10,7 +7,10 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Iterator;
 
 public class CSVReader {
@@ -38,14 +38,22 @@ public class CSVReader {
             Iterator<Cell> inputCellIterator = inputRow.cellIterator();
             Iterator<Cell> outputCellIterator = outputRow.cellIterator();
             while (inputCellIterator.hasNext()) {
-                int cellCount = 0;
                 Cell inputCell = inputCellIterator.next();
-                System.out.println(inputCell.toString());
+                System.out.println(inputCell);
+               // System.out.println(inputCell.toString());
 
-                //logic goes here
-                Cell outputCell = outputRow.createCell(cellCount++);
-                outputCell.setCellValue(inputCell.toString());
-                //System.out.println(outputCell + " ");
+                /*
+                 * split logic goes here
+                 * split cell by pipe separator '|'
+                 */
+                int outputCellCount = 0;
+
+                String inputStr = inputCell.toString();
+                String[] inputDetails = inputStr.split("\\|");
+                for (String inputDetailCell : inputDetails) {
+                    Cell outputCell = outputRow.createCell(outputCellCount++);
+                    outputCell.setCellValue(inputDetailCell);
+                }
             }
             System.out.println();
         }
@@ -86,6 +94,7 @@ public class CSVReader {
             while (cellIterator.hasNext()) {
                 Cell cell = cellIterator.next();
                 System.out.println(cell.toString() + " ;");
+
             }
             System.out.println();
         }
