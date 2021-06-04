@@ -2,8 +2,6 @@ package com.example.sdtconverter;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
@@ -12,8 +10,11 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.logging.Logger;
 
 public class CSVReader {
+
+    private static Logger logger = Logger.getLogger(CSVReader.class.getName());
 
     public static void readCsv() throws IOException {
         // read from user home directory : input
@@ -22,11 +23,11 @@ public class CSVReader {
         File customDir = new File(path);
 
         if (customDir.exists()) {
-            System.out.println(customDir + " already exists");
+            logger.info(customDir + " already exists");
         } else if (customDir.mkdirs()) {
-            System.out.println(customDir + " was created");
+            logger.info(customDir + " was created");
         } else {
-            System.out.println(customDir + " was not created");
+            logger.info(customDir + " was not created");
         }
 
         File excel = new File(customDir + "/SDT_TO_wallet_conversion.xlsx");
@@ -51,7 +52,7 @@ public class CSVReader {
             Iterator<Cell> outputCellIterator = outputRow.cellIterator();
             while (inputCellIterator.hasNext()) {
                 Cell inputCell = inputCellIterator.next();
-                System.out.println(inputCell);
+                logger.info(inputCell.toString());
                 // System.out.println(inputCell.toString());
 
                 /*
