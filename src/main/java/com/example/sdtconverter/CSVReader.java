@@ -8,6 +8,7 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -118,7 +119,8 @@ public class CSVReader {
         XSSFSheet sdtToWalletSheet = sdtToWalletWorkbook.getSheetAt(0);
 
         //write queries created to a .sql file
-        File creditCardWalletIdSql = new File(customDir + "/credit-card-wallet-id.sql");
+        File creditCardWalletIdSql = new File(customDir + "/credit-card-wallet-id.txt");
+        FileOutputStream sdtFileOutputStream = new FileOutputStream(creditCardWalletIdSql);
 
         // read output file and create update query : read |accountid|cardTokenNumber|walletId|
         // store the 3 headers indexes in a hashmap
@@ -196,9 +198,12 @@ public class CSVReader {
                 logger.info(cardWalletQueryBuilder.toString());
                 logger.info(companyQueryBuilder.toString());
 
-
-
+                sdtFileOutputStream.write(new String(cardWalletQueryBuilder).getBytes(StandardCharsets.UTF_8));
+                sdtFileOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
+                sdtFileOutputStream.write((new String(companyQueryBuilder).getBytes(StandardCharsets.UTF_8)));
+                sdtFileOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
             }
             }
+        sdtFileOutputStream.close();
         }
 }
