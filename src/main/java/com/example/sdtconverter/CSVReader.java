@@ -119,8 +119,11 @@ public class CSVReader {
         XSSFSheet sdtToWalletSheet = sdtToWalletWorkbook.getSheetAt(0);
 
         //write queries created to a .sql file
-        File creditCardWalletIdSql = new File(customDir + "/credit-card-wallet-id.txt");
-        FileOutputStream sdtFileOutputStream = new FileOutputStream(creditCardWalletIdSql);
+        File creditCardWalletIdUpdateSql = new File(customDir + "/credit-card-wallet-id-update.txt");
+        File creditCardWalletIdRollbackSql = new File(customDir + "/credit-card-wallet-id-rollback.txt");
+
+        FileOutputStream creditCardWalletIdUpdateOutputStream = new FileOutputStream(creditCardWalletIdUpdateSql);
+        FileOutputStream creditCardWalletIdRollbackOutputStream = new FileOutputStream(creditCardWalletIdRollbackSql);
 
         // read output file and create update query : read |accountid|cardTokenNumber|walletId|
         // store the 3 headers indexes in a hashmap
@@ -162,48 +165,85 @@ public class CSVReader {
                 System.out.println();
 
 
-                /*
-                 * Create update query for CCard
-                 * 4.5. Update credit card walletId query format from converter service output file
-                 * wiki link for converter : https://wiki.intuit.com/display/qbobilling/SDT+to+Wallet+Conversion
-                 */
-                // --update Card Wallet Id ...... discuss with chitra for realmid vs companyid... which one should be in query and why
-                // if both are unique, then we should use realmid
+                creditCardUpdateQueryBuilder(creditCardWalletIdUpdateOutputStream, accountId, cardTokenNumber, walletId);
+                creditCardRollbackQueryBuilder(creditCardWalletIdRollbackOutputStream, accountId, cardTokenNumber, walletId);
+            }
+            }
+        creditCardWalletIdUpdateOutputStream.close();
+        creditCardWalletIdRollbackOutputStream.close();
+        }
 
-                StringBuilder cardWalletQueryBuilder = new StringBuilder();
+    private static void creditCardUpdateQueryBuilder(FileOutputStream creditCardWalletIdUpdateOutputStream, Cell accountId, Cell cardTokenNumber, String walletId) throws IOException {
+        /*
+         * Create update query for CCard
+         * 4.5. Update credit card walletId query format from converter service output file
+         * wiki link for converter : https://wiki.intuit.com/display/qbobilling/SDT+to+Wallet+Conversion
+         */
+        // --update Card Wallet Id ...... discuss with chitra for realmid vs companyid... which one should be in query and why
+        // if both are unique, then we should use realmid
+
+        StringBuilder cardWalletQueryBuilder = new StringBuilder();
 
                 /* cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + walletId + ", hk_modified = GETDATE()" + " " +
                         "WHERE RealmID=" + accountId + " " +
                         "AND CardWalletId IS NULL" + " " +
                         "AND CCardNumberToken=" + cardTokenNumber);*/
 
-                cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + walletId + ", hk_modified = GETDATE()" + " " +
-                        "WHERE RealmID=" + accountId + " " +
-                        "AND CardWalletId IS NULL" + " " +
+        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + walletId + ", hk_modified = GETDATE()" + " " +
+                "WHERE RealmID=" + accountId + " " +
+                "AND CardWalletId IS NULL" + " " +
+        "AND CCardNumberToken=" + cardTokenNumber);
+
+        /*
+         * update company version
+         * Note: accountId is RealmId of a company but for companyid,
+         * we have to fetch company id corresponding to the realmid i.e. accountId here.
+         * why companyid if we can use realmid: since both are unique and realmid is more useful
+         *
+         * so Tauqeer's query need to updated, otherwise there will be un-necessary burden.
+         * discuss this with chitra and subho
+         */
+        StringBuilder companyQueryBuilder = new StringBuilder();
+        //companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE CompanyId = " + accountId);
+        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + accountId);
+
+        logger.info(cardWalletQueryBuilder.toString());
+        logger.info(companyQueryBuilder.toString());
+
+        creditCardWalletIdUpdateOutputStream.write(new String(cardWalletQueryBuilder).getBytes(StandardCharsets.UTF_8));
+        creditCardWalletIdUpdateOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
+        creditCardWalletIdUpdateOutputStream.write((new String(companyQueryBuilder).getBytes(StandardCharsets.UTF_8)));
+        creditCardWalletIdUpdateOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
+    }
+
+
+    private static void creditCardRollbackQueryBuilder(FileOutputStream creditCardWalletIdUpdateOutputStream, Cell accountId, Cell cardTokenNumber, String walletId) throws IOException {
+        // creating rollback query for credit card
+        StringBuilder cardWalletQueryBuilder = new StringBuilder();
+
+        /*
+        UPDATE dbo.CompanySecrets SET CardWalletId = null, hk_modified = GETDATE()
+        WHERE CompanyId = <<param1>>
+        AND CCardNumberToken = '<<param2>>';
+
+        UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE CompanyId = <<param1>>;
+
+        -- <<param1>> : company id from converter service output file  ... (realmID)
+        -- <<param2>> : card token number referenced in the input file query... (cardNumber) in output file also.
+         */
+        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId =null, hk_modified = GETDATE()" + " " +
+                "WHERE RealmID=" + accountId + " " +
                 "AND CCardNumberToken=" + cardTokenNumber);
 
-                /*
-                 * update company version
-                 * Note: accountId is RealmId of a company but for companyid,
-                 * we have to fetch company id corresponding to the realmid i.e. accountId here.
-                 * why companyid if we can use realmid: since both are unique and realmid is more useful
-                 *
-                 * so Tauqeer's query need to updated, otherwise there will be un-necessary burden.
-                 * discuss this with chitra and subho
-                 */
-                StringBuilder companyQueryBuilder = new StringBuilder();
-                //companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE CompanyId = " + accountId);
-                companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + accountId);
+        StringBuilder companyQueryBuilder = new StringBuilder();
+        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + accountId);
 
-                logger.info(cardWalletQueryBuilder.toString());
-                logger.info(companyQueryBuilder.toString());
+        logger.info(cardWalletQueryBuilder.toString());
+        logger.info(companyQueryBuilder.toString());
 
-                sdtFileOutputStream.write(new String(cardWalletQueryBuilder).getBytes(StandardCharsets.UTF_8));
-                sdtFileOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
-                sdtFileOutputStream.write((new String(companyQueryBuilder).getBytes(StandardCharsets.UTF_8)));
-                sdtFileOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
-            }
-            }
-        sdtFileOutputStream.close();
-        }
+        creditCardWalletIdUpdateOutputStream.write(new String(cardWalletQueryBuilder).getBytes(StandardCharsets.UTF_8));
+        creditCardWalletIdUpdateOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
+        creditCardWalletIdUpdateOutputStream.write((new String(companyQueryBuilder).getBytes(StandardCharsets.UTF_8)));
+        creditCardWalletIdUpdateOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
+    }
 }
