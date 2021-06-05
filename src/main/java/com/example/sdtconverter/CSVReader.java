@@ -173,13 +173,13 @@ public class CSVReader {
         creditCardWalletIdRollbackOutputStream.close();
         }
 
+    /*
+     * Create update query for CCard
+     * 4.5. Update credit card walletId query format from converter service output file
+     * wiki link for converter : https://wiki.intuit.com/display/qbobilling/SDT+to+Wallet+Conversion
+     */
     private static void creditCardUpdateQueryBuilder(FileOutputStream creditCardWalletIdUpdateOutputStream, Cell accountId, Cell cardTokenNumber, String walletId) throws IOException {
-        /*
-         * Create update query for CCard
-         * 4.5. Update credit card walletId query format from converter service output file
-         * wiki link for converter : https://wiki.intuit.com/display/qbobilling/SDT+to+Wallet+Conversion
-         */
-        // --update Card Wallet Id ...... discuss with chitra for realmid vs companyid... which one should be in query and why
+          // --update Card Wallet Id ...... discuss with chitra for realmid vs companyid... which one should be in query and why
         // if both are unique, then we should use realmid
 
         StringBuilder cardWalletQueryBuilder = new StringBuilder();
@@ -189,10 +189,10 @@ public class CSVReader {
                         "AND CardWalletId IS NULL" + " " +
                         "AND CCardNumberToken=" + cardTokenNumber);*/
 
-        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + walletId + ", hk_modified = GETDATE()" + " " +
-                "WHERE RealmID=" + accountId + " " +
+        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + "'" + walletId + "'" + ", hk_modified = GETDATE()" + " " +
+                "WHERE RealmID=" + "'" + accountId + "'" + " " +
                 "AND CardWalletId IS NULL" + " " +
-        "AND CCardNumberToken=" + cardTokenNumber);
+        "AND CCardNumberToken=" + "'" + cardTokenNumber + "'");
 
         /*
          * update company version
@@ -205,7 +205,7 @@ public class CSVReader {
          */
         StringBuilder companyQueryBuilder = new StringBuilder();
         //companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE CompanyId = " + accountId);
-        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + accountId);
+        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + "'" + accountId + "'");
 
         logger.info(cardWalletQueryBuilder.toString());
         logger.info(companyQueryBuilder.toString());
@@ -232,11 +232,11 @@ public class CSVReader {
         -- <<param2>> : card token number referenced in the input file query... (cardNumber) in output file also.
          */
         cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId =null, hk_modified = GETDATE()" + " " +
-                "WHERE RealmID=" + accountId + " " +
-                "AND CCardNumberToken=" + cardTokenNumber);
+                "WHERE RealmID=" + "'" + accountId  + "'" + " " +
+                "AND CCardNumberToken="  + "'" +cardTokenNumber + "'");
 
         StringBuilder companyQueryBuilder = new StringBuilder();
-        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + accountId);
+        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + "'" + accountId + "'");
 
         logger.info(cardWalletQueryBuilder.toString());
         logger.info(companyQueryBuilder.toString());
