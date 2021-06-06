@@ -42,10 +42,10 @@ public class CreditCardSDTTOWalletConverter {
 
     so query can be created using output file only
      */
-    public static void createCreditCardWalletIdQuery() throws IOException {
+    public static void createCreditCardWalletIdQuery(String inputFile) throws IOException {
         File customDir = ExcelUtil.getUserHome();
 
-        File excel = new File(customDir + "/formatted-credit-card.xlsx");
+        File excel = new File(customDir + "/" + inputFile);
         FileInputStream fileInputStream = new FileInputStream(excel);
         XSSFWorkbook sdtToWalletWorkbook = new XSSFWorkbook(fileInputStream);
         XSSFSheet sdtToWalletSheet = sdtToWalletWorkbook.getSheetAt(0);

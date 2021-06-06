@@ -4,6 +4,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.util.ObjectUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -13,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Logger;
 
 // @author : @jpatel10 June.6.2021
@@ -42,12 +44,13 @@ public class DirectDebitSDTTOWalletConverter {
      -- <<param1>> : bank walletId from converter service output file
      -- <<param2>> : company Id from converter service output file
      -- <<param3>> : last 4 digit of  bank account number referenced in the input file query
-     -- <<param4>> : last 4 digit of  bank routing number referenced in the input file query
+     -- <<param4>> : last 4 digit of  bank routing number referenced in the input file query ---- discuss with Chitra : which value?
+     * @param inputFile
      */
-    public static void createDirectDebitWalletIdQuery() throws IOException {
+    public static void createDirectDebitWalletIdQuery(String inputFile) throws IOException {
         File customDir = ExcelUtil.getUserHome();
 
-        File excel = new File(customDir + "/formatted-direct-debit.xlsx");
+        File excel = new File(customDir + "/" + inputFile);
         FileInputStream fileInputStream = new FileInputStream(excel);
         XSSFWorkbook sdtToWalletWorkbook = new XSSFWorkbook(fileInputStream);
         XSSFSheet sdtToWalletSheet = sdtToWalletWorkbook.getSheetAt(0);
@@ -91,12 +94,15 @@ public class DirectDebitSDTTOWalletConverter {
                     sdtWalletHeadersMap.put("accountId", cellIndex);                // keys must match with headers
 
                     break;
-                case "cardNumber":
-                    sdtWalletHeadersMap.put("cardNumber", cellIndex);          // keys must match with headers
+                case "accountNumber":
+                    sdtWalletHeadersMap.put("accountNumber", cellIndex);          // keys must match with headers
 
                     break;
                 case "walletId":
                     sdtWalletHeadersMap.put("walletId", cellIndex);                  // keys must match with headers.. no need to store wallet id as it will be always null i case of error
+                    break;
+                case "bankCode": // for routing number, which value to be mapped from input file  : is it bankCode?
+                    sdtWalletHeadersMap.put("bankCode", cellIndex);                  // keys must match with headers.. no need to store wallet id as it will be always null i case of error
                     break;
                 case "errorCode":
                     sdtWalletHeadersMap.put("errorCode", cellIndex);
@@ -113,35 +119,38 @@ public class DirectDebitSDTTOWalletConverter {
 
             if (sdtRow != null) {
                 Cell accountId = sdtRow.getCell(sdtWalletHeadersMap.get("accountId")); // read directly the header values by their column index
-                Cell cardTokenNumber = sdtRow.getCell(sdtWalletHeadersMap.get("cardNumber")); // read directly the header values by their column index
+                Cell accountNumber = sdtRow.getCell(sdtWalletHeadersMap.get("accountNumber")); // read directly the header values by their column index
 
                 // to get wallet id we need to split the walletId string at colon (:)
                 Cell walletIdToken = sdtRow.getCell(sdtWalletHeadersMap.get("walletId")); // read directly the header values by their column index
+                Cell bankCode = sdtRow.getCell(sdtWalletHeadersMap.get("bankCode"));
 
                 // check for error codes and avoid any exception in case walletd is null.
                 // you can create separate file for failing records i.e. wallet id is null case... or error case.
                 Cell errorCode = sdtRow.getCell(sdtWalletHeadersMap.get("errorCode"));
                 int errorColumnCount = 0;
+                if (!Objects.isNull(errorCode))
+                    if (!(errorCode.toString() != null && ExcelUtil.trimQuotesBorder(errorCode.toString()) != "")) { // in normal case : i.e. errorCode field is empty
+                        String[] walletIdString = walletIdToken.toString().split(":");
+                        String walletId =  walletIdString[1]; // at 1th index will be the wallet id
+                        System.out.println();
 
-                if (!(errorCode.toString() != null && ExcelUtil.trimQuotesBorder(errorCode.toString()) != "")) { // in normal case : i.e. errorCode field is empty
-                    String[] walletIdString = walletIdToken.toString().split(":");
-                    String walletId =  walletIdString[1]; // at 1th index will be the wallet id
-                    System.out.println();
+                        directDebitUpdateQueryBuilder(directDebitWalletIdUpdateOutputStream, accountId, accountNumber, walletId, bankCode);
+                        directDebitRollbackQueryBuilder(directDebitWalletIdRollbackOutputStream, accountId, accountNumber, walletId, bankCode);
+                    } else {
+                        // order is important here
+                        Row errorRow = errorSheet.createRow(erroRowCount++);//errror case
+                        // set accounId|cardNumber|errorCode in error sheet
+                        Cell errorCellAccountId = errorRow.createCell(errorColumnCount++);
+                        errorCellAccountId.setCellValue(ExcelUtil.trimQuotesBorder(accountId.toString()));
+                        Cell errorCellAccountNumber = errorRow.createCell(errorColumnCount++);
+                        errorCellAccountNumber.setCellValue(ExcelUtil.trimQuotesBorder(accountNumber.toString()));
 
-                    directDebitUpdateQueryBuilder(directDebitWalletIdUpdateOutputStream, accountId, cardTokenNumber, walletId);
-                    directDebitRollbackQueryBuilder(directDebitWalletIdRollbackOutputStream, accountId, cardTokenNumber, walletId);
-                } else {
-                    // order is important here
-                    Row errorRow = errorSheet.createRow(erroRowCount++);//errror case
-                    // set accounId|cardNumber|errorCode in error sheet
-                    Cell errorCellAccountId = errorRow.createCell(errorColumnCount++);
-                    errorCellAccountId.setCellValue(ExcelUtil.trimQuotesBorder(accountId.toString()));
-
-                    Cell errorCellCardNumber = errorRow.createCell(errorColumnCount++);
-                    errorCellCardNumber.setCellValue(ExcelUtil.trimQuotesBorder(cardTokenNumber.toString()));
-                    Cell errorCellErrorCode = errorRow.createCell(errorColumnCount++);
-                    errorCellErrorCode.setCellValue(ExcelUtil.trimQuotesBorder(errorCode.toString()));
-                }
+                        Cell errorCellBankCode = errorRow.createCell(errorColumnCount++);
+                        errorCellBankCode.setCellValue(ExcelUtil.trimQuotesBorder(errorCellBankCode.toString()));
+                        Cell errorCellErrorCode = errorRow.createCell(errorColumnCount++);
+                        errorCellErrorCode.setCellValue(ExcelUtil.trimQuotesBorder(errorCode.toString()));
+                    }
             }
         }
         errorWorkbook.write(errorCodeExcelFileOutputStream);
@@ -155,21 +164,20 @@ public class DirectDebitSDTTOWalletConverter {
      * 4.5. Update credit card walletId query format from converter service output file
      * wiki link for converter : https://wiki.intuit.com/display/qbobilling/SDT+to+Wallet+Conversion
      */
-    private static void directDebitUpdateQueryBuilder(FileOutputStream directDebitWalletIdUpdateOutputStream, Cell accountId, Cell cardTokenNumber, String walletId) throws IOException {
+    private static void directDebitUpdateQueryBuilder(FileOutputStream directDebitWalletIdUpdateOutputStream, Cell accountId, Cell accountNumber, String walletId, Cell bankCode) throws IOException {
         // --update Card Wallet Id ...... discuss with chitra for realmid vs companyid... which one should be in query and why
         // if both are unique, then we should use realmid
 
-        StringBuilder cardWalletQueryBuilder = new StringBuilder();
+        String accountNumberLastFour = getLastFourSubstring(accountNumber.toString()); // get last 4 digits of account number
+        String bankCodeLastFour = getLastFourSubstring(bankCode.toString());
 
-                /* cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + walletId + ", hk_modified = GETDATE()" + " " +
-                        "WHERE RealmID=" + accountId + " " +
-                        "AND CardWalletId IS NULL" + " " +
-                        "AND CCardNumberToken=" + cardTokenNumber);*/
+        StringBuilder directDebitWalletQueryBuilder = new StringBuilder();
 
-        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + "'" + walletId + "'" + ", hk_modified = GETDATE()" + " " +
-                "WHERE RealmID=" + "'" + accountId + "'" + " " +
-                "AND CardWalletId IS NULL" + " " +
-                "AND CCardNumberToken=" + "'" + cardTokenNumber + "'");
+        directDebitWalletQueryBuilder.append(    "UPDATE dbo.BillingBankAccountInfo SET BankWalletId =" +  "'"+ walletId+ "'" + ", + hk_modified = GETDATE()" +
+                "WHERE CompanyId =" + "'"  + accountId.toString()+ "'" + " " +
+                "AND BankWalletId IS NULL" + " " +
+                "AND AccountNumber =" +  "'" + accountNumberLastFour + "'" + " " +
+                "AND RoutingNumber =" + "'" + bankCodeLastFour + "'");
 
         /*
          * update company version
@@ -184,41 +192,56 @@ public class DirectDebitSDTTOWalletConverter {
         //companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE CompanyId = " + accountId);
         companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + "'" + accountId + "'");
 
-        logger.info(cardWalletQueryBuilder.toString());
+        logger.info(directDebitWalletQueryBuilder.toString());
         logger.info(companyQueryBuilder.toString());
 
-        directDebitWalletIdUpdateOutputStream.write(new String(cardWalletQueryBuilder).getBytes(StandardCharsets.UTF_8));
+        directDebitWalletIdUpdateOutputStream.write(new String(directDebitWalletQueryBuilder).getBytes(StandardCharsets.UTF_8));
         directDebitWalletIdUpdateOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
         directDebitWalletIdUpdateOutputStream.write((new String(companyQueryBuilder).getBytes(StandardCharsets.UTF_8)));
         directDebitWalletIdUpdateOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
     }
 
+    private static String getLastFourSubstring(String str) {
+        return str.substring(str.length() - 4);
+    }
 
-    private static void directDebitRollbackQueryBuilder(FileOutputStream directDebitWalletIdRollbackOutputStream, Cell accountId, Cell cardTokenNumber, String walletId) throws IOException {
+
+    private static void directDebitRollbackQueryBuilder(FileOutputStream directDebitWalletIdRollbackOutputStream, Cell accountId, Cell accountNumber, String walletId, Cell bankCode) throws IOException {
         // creating rollback query for credit card
-        StringBuilder cardWalletQueryBuilder = new StringBuilder();
+        StringBuilder directDebitWalletQueryBuilder = new StringBuilder();
+
+        String accountNumberLastFour = getLastFourSubstring(accountNumber.toString()); // get last 4 digits of account number
+        String bankCodeLastFour = getLastFourSubstring(bankCode.toString());
 
         /*
-        UPDATE dbo.CompanySecrets SET CardWalletId = null, hk_modified = GETDATE()
-        WHERE CompanyId = <<param1>>
-        AND CCardNumberToken = '<<param2>>';
+            UPDATE dbo.BillingBankAccountInfo
+            SET BankWalletId = null , hk_modified = GETDATE()
+            WHERE CompanyId = <<param1>>
+            AND AccountNumber = '<<param2>>'
+            AND RoutingNumber = '<<param3>>';
 
-        UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE CompanyId = <<param1>>;
+            --update company version
+            UPDATE dbo.Companies
+            SET Version = Version + 1, hk_modified = GETDATE()
+            WHERE CompanyId = <<param1>>;
 
-        -- <<param1>> : company id from converter service output file  ... (realmID)
-        -- <<param2>> : card token number referenced in the input file query... (cardNumber) in output file also.
-         */
-        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId =null, hk_modified = GETDATE()" + " " +
+            -- <<param1>> : company Id from converter service output file
+            -- <<param2>> : last 4 digit of  bank account number referenced in the input file query
+            -- <<param3>> : last 4 digit of  bank routing number referenced in the input file query
+            */
+        directDebitWalletQueryBuilder.append( " UPDATE dbo.BillingBankAccountInfo" +
+                "SET BankWalletId = null, hk_modified = GETDATE()" + " " +
                 "WHERE RealmID=" + "'" + accountId  + "'" + " " +
-                "AND CCardNumberToken="  + "'" +cardTokenNumber + "'");
+                "AND AccountNumber =" + "'" +  accountNumberLastFour + "'" + " " +
+                "AND RoutingNumber =" +  "'" +  bankCodeLastFour + "'"); // routing number related and company id related changes to be performed
 
         StringBuilder companyQueryBuilder = new StringBuilder();
         companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + "'" + accountId + "'");
 
-        logger.info(cardWalletQueryBuilder.toString());
+        logger.info(directDebitWalletQueryBuilder.toString());
         logger.info(companyQueryBuilder.toString());
 
-        directDebitWalletIdRollbackOutputStream.write(new String(cardWalletQueryBuilder).getBytes(StandardCharsets.UTF_8));
+        directDebitWalletIdRollbackOutputStream.write(new String(directDebitWalletQueryBuilder).getBytes(StandardCharsets.UTF_8));
         directDebitWalletIdRollbackOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
         directDebitWalletIdRollbackOutputStream.write((new String(companyQueryBuilder).getBytes(StandardCharsets.UTF_8)));
         directDebitWalletIdRollbackOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));

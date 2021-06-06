@@ -27,17 +27,16 @@ public class SDTToWalletConverterApplication {
 			CreditCardSDTTOWalletConverter.formatExcelToColumns(SDT_FILE_PATH_CREDIT_CARD, FORMATTED_OUTPUT_CREDIT_CARD);
 			System.out.println("success!");
 			// now read the formatted output file and get values to create the queries
-			CreditCardSDTTOWalletConverter.createCreditCardWalletIdQuery();
+			CreditCardSDTTOWalletConverter.createCreditCardWalletIdQuery(FORMATTED_OUTPUT_CREDIT_CARD);
 			System.out.println("query created");
 
 
 			// DIRECT DEBIT
-/*			DirectDebitSDTTOWalletConverter.formatExcelToColumns(SDT_FILE_PATH_DIRECT_DEBIT, FORMATTED_OUTPUT_DIRECT_DEBIT);
+			DirectDebitSDTTOWalletConverter.formatExcelToColumns(SDT_FILE_PATH_DIRECT_DEBIT, FORMATTED_OUTPUT_DIRECT_DEBIT);
 			System.out.println("success!");
 			// now read the formatted output file and get values to create the queries
-			DirectDebitSDTTOWalletConverter.createDirectDebitWalletIdQuery();
+			DirectDebitSDTTOWalletConverter.createDirectDebitWalletIdQuery(FORMATTED_OUTPUT_DIRECT_DEBIT);
 			System.out.println("query created");
-*/
 
 
 		} catch (IOException e) {
