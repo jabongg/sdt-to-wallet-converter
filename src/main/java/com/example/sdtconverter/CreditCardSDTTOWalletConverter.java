@@ -2,8 +2,6 @@ package com.example.sdtconverter;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.xssf.usermodel.XSSFCell;
-import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
@@ -14,84 +12,17 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import static com.example.sdtconverter.ExcelUtil.trimQuotesBorder;
+
 // @author : @jpatel10 June.4.2021
 
-public class CSVReader {
+public class CreditCardSDTTOWalletConverter {
 
-    private static Logger logger = Logger.getLogger(CSVReader.class.getName());
+    private static Logger logger = Logger.getLogger(CreditCardSDTTOWalletConverter.class.getName());
     private static Map<String, Integer> sdtWalletHeadersMap = new HashMap<>(); // to store imporatant columns which required in queries or error codes case
 
-    public static void readAndCreateExcel() throws IOException {
-        File customDir = getUserHome();
-
-        File excel = new File(customDir + "/SDT_TO_wallet_conversion.xlsx");
-        FileInputStream fileInputStream = new FileInputStream(excel);
-        XSSFWorkbook inputWorkbook = new XSSFWorkbook(fileInputStream);
-        XSSFSheet inputSheet = inputWorkbook.getSheetAt(0);
-
-        // formatted excel : output
-        XSSFWorkbook outputWorkbook = new XSSFWorkbook();
-        FileOutputStream fileOutputStream = new FileOutputStream(customDir + "/formatted" + System.currentTimeMillis() + ".xlsx");
-        XSSFSheet outputSheet = outputWorkbook.createSheet();
-
-        int rowCount = 0;
-        // iterate in rows
-        Iterator<Row> rowsIterator = inputSheet.iterator();
-        while (rowsIterator.hasNext()) {
-            //get the row
-            Row inputRow = rowsIterator.next();
-            Row outputRow = outputSheet.createRow(rowCount++);
-            // iterate cells from the current row
-            Iterator<Cell> inputCellIterator = inputRow.cellIterator();
-            while (inputCellIterator.hasNext()) {
-                Cell inputCell = inputCellIterator.next();
-                logger.info(inputCell.toString());
-
-                /*
-                 * split logic goes here
-                 * split cell by pipe separator '|'
-                 */
-                int outputCellCount = 0;
-
-                String inputStr = inputCell.toString();
-                String[] inputDetails = inputStr.split("\\|");
-                for (String inputDetailCell : inputDetails) {
-                    Cell outputCell = outputRow.createCell(outputCellCount++);
-                    outputCell.setCellValue(trimQuotesBorder(inputDetailCell));
-                }
-            }
-            System.out.println();
-        }
-
-        outputWorkbook.write(fileOutputStream);
-        outputWorkbook.close();
-        inputWorkbook.close();
-        fileInputStream.close();
-    }
-
-    private static File getUserHome() {
-        // read from user home directory : input
-        String path = System.getProperty("user.home") + File.separator + "Desktop";
-        path += File.separator + "Converter";
-        File customDir = new File(path);
-
-        if (customDir.exists()) {
-            logger.info(customDir + " already exists");
-        } else if (customDir.mkdirs()) {
-            logger.info(customDir + " was created");
-        } else {
-            logger.info(customDir + " was not created");
-        }
-        return customDir;
-    }
-
-    public static String trimQuotes(String str) {
-        return str.replace("\"", "");
-    }
-
-    // can handle names like "Tonny "Jerry" Johns" -> Tonny "Jerry" Johns
-    public static String trimQuotesBorder(String str) {
-        return str.replaceAll("^(['\"])(.*)\\1$", "$2");
+    public static void formatExcelToColumns(String sdtFilePathCreditCard) throws IOException {
+        ExcelUtil.readAndCreateExcel(sdtFilePathCreditCard); // input file to read credit card
     }
 
     /**
@@ -112,7 +43,7 @@ public class CSVReader {
     so query can be created using output file only
      */
     public static void createCreditCardWalletIdQuery() throws IOException {
-        File customDir = getUserHome();
+        File customDir = ExcelUtil.getUserHome();
 
         File excel = new File(customDir + "/formatted.xlsx");
         FileInputStream fileInputStream = new FileInputStream(excel);
@@ -190,7 +121,7 @@ public class CSVReader {
                 Cell errorCode = sdtRow.getCell(sdtWalletHeadersMap.get("errorCode"));
                 int errorColumnCount = 0;
 
-                if (!(errorCode.toString() != null && trimQuotesBorder(errorCode.toString()) != "")) { // in normal case : i.e. errorCode field is empty
+                if (!(errorCode.toString() != null && ExcelUtil.trimQuotesBorder(errorCode.toString()) != "")) { // in normal case : i.e. errorCode field is empty
                     String[] walletIdString = walletIdToken.toString().split(":");
                     String walletId =  walletIdString[1]; // at 1th index will be the wallet id
                     System.out.println();
@@ -202,12 +133,12 @@ public class CSVReader {
                     Row errorRow = errorSheet.createRow(erroRowCount++);//errror case
                     // set accounId|cardNumber|errorCode in error sheet
                     Cell errorCellAccountId = errorRow.createCell(errorColumnCount++);
-                    errorCellAccountId.setCellValue(trimQuotesBorder(accountId.toString()));
+                    errorCellAccountId.setCellValue(ExcelUtil.trimQuotesBorder(accountId.toString()));
 
                     Cell errorCellCardNumber = errorRow.createCell(errorColumnCount++);
-                    errorCellCardNumber.setCellValue(trimQuotesBorder(cardTokenNumber.toString()));
+                    errorCellCardNumber.setCellValue(ExcelUtil.trimQuotesBorder(cardTokenNumber.toString()));
                     Cell errorCellErrorCode = errorRow.createCell(errorColumnCount++);
-                    errorCellErrorCode.setCellValue(trimQuotesBorder(errorCode.toString()));
+                    errorCellErrorCode.setCellValue(ExcelUtil.trimQuotesBorder(errorCode.toString()));
                 }
             }
             }
@@ -261,7 +192,7 @@ public class CSVReader {
     }
 
 
-    private static void creditCardRollbackQueryBuilder(FileOutputStream creditCardWalletIdUpdateOutputStream, Cell accountId, Cell cardTokenNumber, String walletId) throws IOException {
+    private static void creditCardRollbackQueryBuilder(FileOutputStream creditCardWalletIdRollbackOutputStream, Cell accountId, Cell cardTokenNumber, String walletId) throws IOException {
         // creating rollback query for credit card
         StringBuilder cardWalletQueryBuilder = new StringBuilder();
 
@@ -285,12 +216,14 @@ public class CSVReader {
         logger.info(cardWalletQueryBuilder.toString());
         logger.info(companyQueryBuilder.toString());
 
-        creditCardWalletIdUpdateOutputStream.write(new String(cardWalletQueryBuilder).getBytes(StandardCharsets.UTF_8));
-        creditCardWalletIdUpdateOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
-        creditCardWalletIdUpdateOutputStream.write((new String(companyQueryBuilder).getBytes(StandardCharsets.UTF_8)));
-        creditCardWalletIdUpdateOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
+        creditCardWalletIdRollbackOutputStream.write(new String(cardWalletQueryBuilder).getBytes(StandardCharsets.UTF_8));
+        creditCardWalletIdRollbackOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
+        creditCardWalletIdRollbackOutputStream.write((new String(companyQueryBuilder).getBytes(StandardCharsets.UTF_8)));
+        creditCardWalletIdRollbackOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
     }
 
     public static void createDirectDebitWalletIdQuery() {
     }
+
+
 }
