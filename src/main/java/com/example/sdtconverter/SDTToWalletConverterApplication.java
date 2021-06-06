@@ -24,6 +24,7 @@ public class SDTToWalletConverterApplication {
 
 			// now read the formatted output file and get values to create the queries
 			CSVReader.createCreditCardWalletIdQuery();
+			CSVReader.createDirectDebitWalletIdQuery();
 			System.out.println("query created");
 		} catch (IOException e) {
 			e.printStackTrace();
