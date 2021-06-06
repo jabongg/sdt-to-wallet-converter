@@ -21,8 +21,8 @@ public class CreditCardSDTTOWalletConverter {
     private static Logger logger = Logger.getLogger(CreditCardSDTTOWalletConverter.class.getName());
     private static Map<String, Integer> sdtWalletHeadersMap = new HashMap<>(); // to store imporatant columns which required in queries or error codes case
 
-    public static void formatExcelToColumns(String sdtFilePathCreditCard) throws IOException {
-        ExcelUtil.readAndCreateExcel(sdtFilePathCreditCard); // input file to read credit card
+    public static void formatExcelToColumns(String inputFileName, String outputFileName) throws IOException {
+        ExcelUtil.readAndCreateExcel(inputFileName, outputFileName); // input file to read credit card
     }
 
     /**
@@ -45,7 +45,7 @@ public class CreditCardSDTTOWalletConverter {
     public static void createCreditCardWalletIdQuery() throws IOException {
         File customDir = ExcelUtil.getUserHome();
 
-        File excel = new File(customDir + "/formatted.xlsx");
+        File excel = new File(customDir + "/formatted-credit-card.xlsx");
         FileInputStream fileInputStream = new FileInputStream(excel);
         XSSFWorkbook sdtToWalletWorkbook = new XSSFWorkbook(fileInputStream);
         XSSFSheet sdtToWalletSheet = sdtToWalletWorkbook.getSheetAt(0);

@@ -16,7 +16,7 @@ import java.util.logging.Logger;
 public class ExcelUtil {
     private static Logger logger = Logger.getLogger(CreditCardSDTTOWalletConverter.class.getName());
 
-     public static void readAndCreateExcel(String inputFileName) throws IOException {
+     public static void readAndCreateExcel(String inputFileName, String outputFileName) throws IOException {
         File customDir = getUserHome();
 
         File excel = new File(customDir + "/" + inputFileName);
@@ -26,7 +26,7 @@ public class ExcelUtil {
 
         // formatted excel : output
         XSSFWorkbook outputWorkbook = new XSSFWorkbook();
-        FileOutputStream fileOutputStream = new FileOutputStream(customDir + "/formatted" + System.currentTimeMillis() + ".xlsx");
+        FileOutputStream fileOutputStream = new FileOutputStream(customDir + "/" +outputFileName);
         XSSFSheet outputSheet = outputWorkbook.createSheet();
 
         int rowCount = 0;

@@ -22,31 +22,32 @@ public class DirectDebitSDTTOWalletConverter {
     private static Logger logger = Logger.getLogger(DirectDebitSDTTOWalletConverter.class.getName());
     private static Map<String, Integer> sdtWalletHeadersMap = new HashMap<>(); // to store imporatant columns which required in queries or error codes case
 
-    public static void formatExcelToColumns() throws IOException {
-        ExcelUtil.readAndCreateExcel("SDT_TO_wallet_conversion.xlsx"); // input file to read credit card
+    public static void formatExcelToColumns(String inputFileName, String outputFileName) throws IOException {
+        ExcelUtil.readAndCreateExcel(inputFileName, outputFileName); // input file to read credit card
     }
 
     /**
-     4.5. Update credit card walletId query format from converter service output file
-     --update Card Wallet Id
-     UPDATE dbo.CompanySecrets SET CardwalletId = '<<param1>>' , hk_modified = GETDATE()
-     WHERE Companyid = <<param2>>
-     AND CardWalletId IS NULL
-     AND CCardNumberToken = '<<param3>>';
+     UPDATE dbo.BillingBankAccountInfo
+     SET BankWalletId = '<<param1>>', hk_modified = GETDATE()
+     WHERE CompanyId = <<param2>>
+     AND BankWalletId IS NULL
+     AND AccountNumber = '<<param3>>'
+     AND RoutingNumber = '<<param4>>';
 
      --update company version
-     UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE CompanyId = <<param2>>;
+     UPDATE dbo.Companies
+     SET Version = Version + 1, hk_modified = GETDATE()
+     WHERE CompanyId = <<param2>>;
 
-     -- <<param1>> : card walletId from converter service output file
-     -- <<param2>> : company id (accountid) referenced in the input file query  // also present in output file
-     -- <<param3>> : card token number (cardNumber) referenced in the input file query // also present in output file
-
-     so query can be created using output file only
+     -- <<param1>> : bank walletId from converter service output file
+     -- <<param2>> : company Id from converter service output file
+     -- <<param3>> : last 4 digit of  bank account number referenced in the input file query
+     -- <<param4>> : last 4 digit of  bank routing number referenced in the input file query
      */
     public static void createDirectDebitWalletIdQuery() throws IOException {
         File customDir = ExcelUtil.getUserHome();
 
-        File excel = new File(customDir + "/formatted.xlsx");
+        File excel = new File(customDir + "/formatted-direct-debit.xlsx");
         FileInputStream fileInputStream = new FileInputStream(excel);
         XSSFWorkbook sdtToWalletWorkbook = new XSSFWorkbook(fileInputStream);
         XSSFSheet sdtToWalletSheet = sdtToWalletWorkbook.getSheetAt(0);
