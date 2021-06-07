@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Logger;
 
 import static com.example.sdtconverter.ExcelUtil.trimQuotesBorder;
@@ -58,7 +59,7 @@ public class CreditCardSDTTOWalletConverter {
         FileOutputStream creditCardWalletIdRollbackOutputStream = new FileOutputStream(creditCardWalletIdRollbackSql);
 
         // errocodes case : discuss with Chitra, what to do with the failed cases? .... can store these failed alues to a file
-        File errorCodeExcel = new File(customDir + "/errorCode.xlsx");
+        File errorCodeExcel = new File(customDir + "/errorCode-credit-card.xlsx");
         FileOutputStream errorCodeExcelFileOutputStream = new FileOutputStream(errorCodeExcel);
         XSSFWorkbook errorWorkbook = new XSSFWorkbook();
         XSSFSheet errorSheet = errorWorkbook.createSheet();
@@ -121,6 +122,9 @@ public class CreditCardSDTTOWalletConverter {
                 Cell errorCode = sdtRow.getCell(sdtWalletHeadersMap.get("errorCode"));
                 int errorColumnCount = 0;
 
+                if (Objects.isNull(errorCode)) {
+                    continue;
+                }
                 if (!(errorCode.toString() != null && ExcelUtil.trimQuotesBorder(errorCode.toString()) != "")) { // in normal case : i.e. errorCode field is empty
                     String[] walletIdString = walletIdToken.toString().split(":");
                     String walletId =  walletIdString[1]; // at 1th index will be the wallet id
@@ -164,10 +168,16 @@ public class CreditCardSDTTOWalletConverter {
                         "AND CardWalletId IS NULL" + " " +
                         "AND CCardNumberToken=" + cardTokenNumber);*/
 
-        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + "'" + walletId + "'" + ", hk_modified = GETDATE()" + " " +
+        /*        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + "'" + walletId + "'" + ", hk_modified = GETDATE()" + " " +
                 "WHERE RealmID=" + "'" + accountId + "'" + " " +
                 "AND CardWalletId IS NULL" + " " +
         "AND CCardNumberToken=" + "'" + cardTokenNumber + "'");
+        */
+        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + "'" + walletId + "'" + ", hk_modified = GETDATE()" + " " +
+                "WHERE companyId= " + "(" + "SELECT companyId FROM companies WHERE realmID = " + "'" + accountId + "'" + " " + " AND ServiceType IN  ('IOP', 'FS') AND BillingMethod = 'C'" + ")" + " " +
+                "AND CardWalletId IS NULL" + " " +
+                "AND CCardNumberToken=" + "'" + cardTokenNumber + "'");
+
 
         /*
          * update company version
@@ -180,7 +190,7 @@ public class CreditCardSDTTOWalletConverter {
          */
         StringBuilder companyQueryBuilder = new StringBuilder();
         //companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE CompanyId = " + accountId);
-        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + "'" + accountId + "'");
+        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + "'" + accountId + "'" + " AND ServiceType IN  ('IOP', 'FS') AND BillingMethod = 'C' ");
 
         logger.info(cardWalletQueryBuilder.toString());
         logger.info(companyQueryBuilder.toString());
@@ -207,11 +217,11 @@ public class CreditCardSDTTOWalletConverter {
         -- <<param2>> : card token number referenced in the input file query... (cardNumber) in output file also.
          */
         cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId =null, hk_modified = GETDATE()" + " " +
-                "WHERE RealmID=" + "'" + accountId  + "'" + " " +
-                "AND CCardNumberToken="  + "'" +cardTokenNumber + "'");
+                "WHERE RealmID= " + "'" + accountId  + "'" + " " + " AND ServiceType IN  ('IOP', 'FS') AND BillingMethod = 'C' " +
+                "AND CCardNumberToken= "  + "'" + cardTokenNumber + "'");
 
         StringBuilder companyQueryBuilder = new StringBuilder();
-        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + "'" + accountId + "'");
+        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + "'" + accountId + "'" + " AND ServiceType IN  ('IOP', 'FS') AND BillingMethod = 'C'") ;
 
         logger.info(cardWalletQueryBuilder.toString());
         logger.info(companyQueryBuilder.toString());

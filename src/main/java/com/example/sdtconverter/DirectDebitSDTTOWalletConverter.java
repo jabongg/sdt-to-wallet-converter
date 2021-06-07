@@ -52,8 +52,8 @@ public class DirectDebitSDTTOWalletConverter {
 
         File excel = new File(customDir + "/" + inputFile);
         FileInputStream fileInputStream = new FileInputStream(excel);
-        XSSFWorkbook sdtToWalletWorkbook = new XSSFWorkbook(fileInputStream);
-        XSSFSheet sdtToWalletSheet = sdtToWalletWorkbook.getSheetAt(0);
+        XSSFWorkbook sdtDirectDebitToWalletWorkbook = new XSSFWorkbook(fileInputStream);
+        XSSFSheet sdtDirectDebitToWalletSheet = sdtDirectDebitToWalletWorkbook.getSheetAt(0);
 
         //write queries created to a .sql file
         File directDebitWalletIdUpdateSql = new File(customDir + "/direct-debit-wallet-id-update.txt");
@@ -63,7 +63,7 @@ public class DirectDebitSDTTOWalletConverter {
         FileOutputStream directDebitWalletIdRollbackOutputStream = new FileOutputStream(directDebitWalletIdRollbackSql);
 
         // errocodes case : discuss with Chitra, what to do with the failed cases? .... can store these failed alues to a file
-        File errorCodeExcel = new File(customDir + "/errorCode.xlsx");
+        File errorCodeExcel = new File(customDir + "/errorCode-direct-debit.xlsx");
         FileOutputStream errorCodeExcelFileOutputStream = new FileOutputStream(errorCodeExcel);
         XSSFWorkbook errorWorkbook = new XSSFWorkbook();
         XSSFSheet errorSheet = errorWorkbook.createSheet();
@@ -71,22 +71,26 @@ public class DirectDebitSDTTOWalletConverter {
 
         // read output file and create update query : read |accountid|cardTokenNumber|walletId|errorCode
         // store the 3 headers indexes in a hashmap
-        Row headers = sdtToWalletSheet.getRow(0);
+        Row headers = sdtDirectDebitToWalletSheet.getRow(0);
 
         // creating headers for error sheet
         int erroRowCount = 0;
         Row errorHeaders = errorSheet.createRow(erroRowCount++);
 
         int cells = headers.getPhysicalNumberOfCells();
+        int errorColCount = 0;
+        Cell errorAccountId = errorHeaders.createCell(errorColCount++);
+        errorAccountId.setCellValue("accountId");
+        Cell errorAccountNumber = errorHeaders.createCell(errorColCount++);
+        errorAccountNumber.setCellValue("accountNumber");
+        Cell errorBankCode = errorHeaders.createCell(errorColCount++);
+        errorBankCode.setCellValue("bankCode");
+        Cell errorErrorCode = errorHeaders.createCell(errorColCount++);
+        errorErrorCode.setCellValue("errorCode");
+
         for (int cellIndex = 0; cellIndex < cells; cellIndex++) {
 
-            int errorColumnCount = 0;
-            Cell errorAccountId = errorHeaders.createCell(errorColumnCount++);
-            errorAccountId.setCellValue("accountId");
-            Cell errorCardNumber = errorHeaders.createCell(errorColumnCount++);
-            errorCardNumber.setCellValue("cardNumber");
-            Cell errorErrorCode = errorHeaders.createCell(errorColumnCount++);
-            errorErrorCode.setCellValue("errorCode");
+
 
             Cell cell = headers.getCell(cellIndex);
             switch (cell.toString().trim()) {
@@ -113,9 +117,9 @@ public class DirectDebitSDTTOWalletConverter {
         }
 
         // now, iterate the remaining rows
-        int rows = sdtToWalletSheet.getPhysicalNumberOfRows() - 1; // excluding headers
+        int rows = sdtDirectDebitToWalletSheet.getPhysicalNumberOfRows() - 1; // excluding headers
         for (int r = 1; r <= rows; r++) {
-            Row sdtRow = sdtToWalletSheet.getRow(r);
+            Row sdtRow = sdtDirectDebitToWalletSheet.getRow(r);
 
             if (sdtRow != null) {
                 Cell accountId = sdtRow.getCell(sdtWalletHeadersMap.get("accountId")); // read directly the header values by their column index
@@ -129,10 +133,12 @@ public class DirectDebitSDTTOWalletConverter {
                 // you can create separate file for failing records i.e. wallet id is null case... or error case.
                 Cell errorCode = sdtRow.getCell(sdtWalletHeadersMap.get("errorCode"));
                 int errorColumnCount = 0;
-                if (!Objects.isNull(errorCode))
+               if (Objects.isNull(errorCode)) {
+                   continue;
+               }
                     if (!(errorCode.toString() != null && ExcelUtil.trimQuotesBorder(errorCode.toString()) != "")) { // in normal case : i.e. errorCode field is empty
                         String[] walletIdString = walletIdToken.toString().split(":");
-                        String walletId =  walletIdString[1]; // at 1th index will be the wallet id
+                        String walletId = walletIdString[1]; // at 1th index will be the wallet id
                         System.out.println();
 
                         directDebitUpdateQueryBuilder(directDebitWalletIdUpdateOutputStream, accountId, accountNumber, walletId, bankCode);
@@ -151,6 +157,7 @@ public class DirectDebitSDTTOWalletConverter {
                         Cell errorCellErrorCode = errorRow.createCell(errorColumnCount++);
                         errorCellErrorCode.setCellValue(ExcelUtil.trimQuotesBorder(errorCode.toString()));
                     }
+            //    }
             }
         }
         errorWorkbook.write(errorCodeExcelFileOutputStream);
@@ -173,7 +180,7 @@ public class DirectDebitSDTTOWalletConverter {
 
         StringBuilder directDebitWalletQueryBuilder = new StringBuilder();
 
-        directDebitWalletQueryBuilder.append(    "UPDATE dbo.BillingBankAccountInfo SET BankWalletId =" +  "'"+ walletId+ "'" + ", + hk_modified = GETDATE()" +
+        directDebitWalletQueryBuilder.append("UPDATE dbo.BillingBankAccountInfo SET BankWalletId =" +  "'"+ walletId+ "'" + ", + hk_modified = GETDATE()" +
                 "WHERE CompanyId =" + "'"  + accountId.toString()+ "'" + " " +
                 "AND BankWalletId IS NULL" + " " +
                 "AND AccountNumber =" +  "'" + accountNumberLastFour + "'" + " " +

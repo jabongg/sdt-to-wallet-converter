@@ -19,7 +19,7 @@ public class ExcelUtil {
      public static void readAndCreateExcel(String inputFileName, String outputFileName) throws IOException {
         File customDir = getUserHome();
 
-        File excel = new File(customDir + "/" + inputFileName);
+        File excel = new File(inputFileName);
         FileInputStream fileInputStream = new FileInputStream(excel);
         XSSFWorkbook inputWorkbook = new XSSFWorkbook(fileInputStream);
         XSSFSheet inputSheet = inputWorkbook.getSheetAt(0);
@@ -89,4 +89,27 @@ public class ExcelUtil {
         return str.replaceAll("^(['\"])(.*)\\1$", "$2");
     }
 
+    public static File getLastModified(String directoryFilePath)
+    {
+        File directory = new File(directoryFilePath);
+        File[] files = directory.listFiles(File::isFile);
+        long lastModifiedTime = Long.MIN_VALUE;
+        File chosenFile = null;
+
+        if (files != null)
+        {
+            for (File file : files)
+            {
+                if (file.lastModified() > lastModifiedTime)
+                {
+                    if (file.getName().startsWith("creditCard_output_PB_")) {
+                    chosenFile = file;
+                    lastModifiedTime = file.lastModified();
+                }
+                }
+            }
+        }
+
+        return chosenFile;
+    }
 }
