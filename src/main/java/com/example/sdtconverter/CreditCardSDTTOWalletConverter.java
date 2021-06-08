@@ -232,8 +232,5 @@ public class CreditCardSDTTOWalletConverter {
         creditCardWalletIdRollbackOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
     }
 
-    public static void createDirectDebitWalletIdQuery() {
-    }
-
 
 }
