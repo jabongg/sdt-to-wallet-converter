@@ -1,20 +1,22 @@
 package com.example.sdtconverter;
 
+import com.opencsv.CSVReader;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.Iterator;
 
 import java.util.logging.Logger;
 
 public class ExcelUtil {
     private static Logger logger = Logger.getLogger(CreditCardSDTTOWalletConverter.class.getName());
+
+    public static final char FILE_DELIMITER = '|';
+    public static final String FILE_EXTN = ".xlsx";
+
 
      public static void readAndCreateExcel(String inputFileName, String outputFileName) throws IOException {
         File customDir = getUserHome();
@@ -89,7 +91,7 @@ public class ExcelUtil {
         return str.replaceAll("^(['\"])(.*)\\1$", "$2");
     }
 
-    public static File getLastModified(String directoryFilePath)
+    public static File getLastModified(String directoryFilePath, String startsWith, String endsWith)
     {
         File directory = new File(directoryFilePath);
         File[] files = directory.listFiles(File::isFile);
@@ -102,7 +104,7 @@ public class ExcelUtil {
             {
                 if (file.lastModified() > lastModifiedTime)
                 {
-                    if (file.getName().startsWith("creditCard_output_PB_")) {
+                    if (file.getName().startsWith(startsWith) && file.getName().endsWith(endsWith)) {
                     chosenFile = file;
                     lastModifiedTime = file.lastModified();
                 }
@@ -111,5 +113,37 @@ public class ExcelUtil {
         }
 
         return chosenFile;
+    }
+
+    public static String removeFileExtention(String name) {
+        if (name.indexOf(".") > 0)
+            name = name.substring(0, name.lastIndexOf("."));
+        return name;
+    }
+
+    public static void convertCsvToXls(String xlsxFileLocation, String csvFilePath, String fileName) throws FileNotFoundException, Exception {
+        CSVReader reader = null;
+
+        // formatted excel : output
+        XSSFWorkbook outputWorkbook = new XSSFWorkbook();
+        FileOutputStream fileOutputStream = new FileOutputStream( xlsxFileLocation + "/" + fileName + FILE_EXTN);
+        XSSFSheet outputSheet = outputWorkbook.createSheet();
+
+        /**** Get the CSVReader Instance & Specify The Delimiter To Be Used ****/
+        String[] nextLine;
+        reader = new CSVReader(new FileReader(csvFilePath), FILE_DELIMITER);
+
+        int rowNum = 0;
+        logger.info("Creating New .xlsx File From The Already Generated .csv File");
+        while((nextLine = reader.readNext()) != null) {
+            Row currentRow = outputSheet.createRow(rowNum++);
+            for(int i=0; i < nextLine.length; i++) {
+                currentRow.createCell(i).setCellValue(nextLine[i]);
+            }
+        }
+        outputWorkbook.write(fileOutputStream);
+        outputWorkbook.close();
+        fileOutputStream.close();
+        reader.close();
     }
 }

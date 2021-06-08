@@ -46,7 +46,7 @@ public class CreditCardSDTTOWalletConverter {
     public static void createCreditCardWalletIdQuery(String inputFile) throws IOException {
         File customDir = ExcelUtil.getUserHome();
 
-        File excel = new File(customDir + "/" + inputFile);
+        File excel = new File(inputFile);
         FileInputStream fileInputStream = new FileInputStream(excel);
         XSSFWorkbook sdtToWalletWorkbook = new XSSFWorkbook(fileInputStream);
         XSSFSheet sdtToWalletSheet = sdtToWalletWorkbook.getSheetAt(0);

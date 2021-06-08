@@ -34,16 +34,23 @@ public class SDTToWalletConverterApplication {
 			path += File.separator + "Converter";			//File dir = new File(xmlFilesDirectory);
 			//creditCard_output_PB_7jun_41k_1
 
-			File latestFile = ExcelUtil.getLastModified(path);
-			if (latestFile == null) {
+			// creditCard_output_PB_*.csv to excel
+			File latestFileCsv = ExcelUtil.getLastModified(path, "creditCard_output_PB_", ".csv");
+			if (latestFileCsv == null) {
 				throw new Exception("file not found! Kindly provide the pb output file");
 			}
 
+			String getFileNameOnly = ExcelUtil.removeFileExtention(latestFileCsv.getName());
+			ExcelUtil.convertCsvToXls(path, latestFileCsv.getAbsolutePath(), getFileNameOnly);
+
+			File latestFileXlsx = ExcelUtil.getLastModified(path, "creditCard_output_PB_", ".xlsx");
+			if (latestFileXlsx == null) {
+				throw new Exception("file not found! the pb output file: xlsx not created");
+			}
+
 			// CREDTI CARD
-			CreditCardSDTTOWalletConverter.formatExcelToColumns(latestFile.getAbsolutePath(), FORMATTED_OUTPUT_CREDIT_CARD);
-			System.out.println("success!");
 			// now read the formatted output file and get values to create the queries
-			//CreditCardSDTTOWalletConverter.createCreditCardWalletIdQuery(FORMATTED_OUTPUT_CREDIT_CARD);
+			CreditCardSDTTOWalletConverter.createCreditCardWalletIdQuery(latestFileXlsx.getAbsolutePath());
 			System.out.println("query created");
 
 /*
