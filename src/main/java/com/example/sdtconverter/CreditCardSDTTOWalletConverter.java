@@ -52,7 +52,7 @@ public class CreditCardSDTTOWalletConverter {
         XSSFSheet sdtToWalletSheet = sdtToWalletWorkbook.getSheetAt(0);
 
         //write queries created to a .sql file
-        File creditCardWalletIdUpdateSql = new File(customDir + "/credit-card-wallet-id-update.txt");:
+        File creditCardWalletIdUpdateSql = new File(customDir + "/credit-card-wallet-id-update.txt");
         File creditCardWalletIdRollbackSql = new File(customDir + "/credit-card-wallet-id-rollback.txt");
 
         FileOutputStream creditCardWalletIdUpdateOutputStream = new FileOutputStream(creditCardWalletIdUpdateSql);
