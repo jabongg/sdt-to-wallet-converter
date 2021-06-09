@@ -52,7 +52,7 @@ public class CreditCardSDTTOWalletConverter {
         XSSFSheet sdtToWalletSheet = sdtToWalletWorkbook.getSheetAt(0);
 
         //write queries created to a .sql file
-        File creditCardWalletIdUpdateSql = new File(customDir + "/credit-card-wallet-id-update.txt");
+        File creditCardWalletIdUpdateSql = new File(customDir + "/credit-card-wallet-id-update.txt");:
         File creditCardWalletIdRollbackSql = new File(customDir + "/credit-card-wallet-id-rollback.txt");
 
         FileOutputStream creditCardWalletIdUpdateOutputStream = new FileOutputStream(creditCardWalletIdUpdateSql);
@@ -216,9 +216,11 @@ public class CreditCardSDTTOWalletConverter {
         -- <<param1>> : company id from converter service output file  ... (realmID)
         -- <<param2>> : card token number referenced in the input file query... (cardNumber) in output file also.
          */
-        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId =null, hk_modified = GETDATE()" + " " +
-                "WHERE RealmID= " + "'" + accountId  + "'" + " " + " AND ServiceType IN  ('IOP', 'FS') AND BillingMethod = 'C' " +
-                "AND CCardNumberToken= "  + "'" + cardTokenNumber + "'");
+
+        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId = null, hk_modified = GETDATE()" + " " +
+                "WHERE companyId= " + "(" + "SELECT companyId FROM companies WHERE realmID = " + "'" + accountId + "'" + " " + " AND ServiceType IN  ('IOP', 'FS') AND BillingMethod = 'C'" + ")" + " " +
+                "AND CardWalletId IS NOT NULL" + " " +
+                "AND CCardNumberToken=" + "'" + cardTokenNumber + "'");
 
         StringBuilder companyQueryBuilder = new StringBuilder();
         companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + "'" + accountId + "'" + " AND ServiceType IN  ('IOP', 'FS') AND BillingMethod = 'C'") ;
