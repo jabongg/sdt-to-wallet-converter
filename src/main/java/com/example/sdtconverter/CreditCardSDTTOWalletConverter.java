@@ -52,8 +52,8 @@ public class CreditCardSDTTOWalletConverter {
         XSSFSheet sdtToWalletSheet = sdtToWalletWorkbook.getSheetAt(0);
 
         //write queries created to a .sql file
-        File creditCardWalletIdUpdateSql = new File(customDir + "/credit-card-wallet-id-update.txt");
-        File creditCardWalletIdRollbackSql = new File(customDir + "/credit-card-wallet-id-rollback.txt");
+        File creditCardWalletIdUpdateSql = new File(customDir + "/creditCard_output_PB_update.sql");
+        File creditCardWalletIdRollbackSql = new File(customDir + "/creditCard_output_PB_rollback.sql");
 
         FileOutputStream creditCardWalletIdUpdateOutputStream = new FileOutputStream(creditCardWalletIdUpdateSql);
         FileOutputStream creditCardWalletIdRollbackOutputStream = new FileOutputStream(creditCardWalletIdRollbackSql);
@@ -163,34 +163,16 @@ public class CreditCardSDTTOWalletConverter {
 
         StringBuilder cardWalletQueryBuilder = new StringBuilder();
 
-                /* cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + walletId + ", hk_modified = GETDATE()" + " " +
-                        "WHERE RealmID=" + accountId + " " +
-                        "AND CardWalletId IS NULL" + " " +
-                        "AND CCardNumberToken=" + cardTokenNumber);*/
+        // print message to log in db console
+        cardWalletQueryBuilder.append("print" + " " + "'" + "realmID is :" + accountId + "'" + ";\n");
 
-        /*        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + "'" + walletId + "'" + ", hk_modified = GETDATE()" + " " +
-                "WHERE RealmID=" + "'" + accountId + "'" + " " +
-                "AND CardWalletId IS NULL" + " " +
-        "AND CCardNumberToken=" + "'" + cardTokenNumber + "'");
-        */
-        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + "'" + walletId + "'" + ", hk_modified = GETDATE()" + " " +
-                "WHERE companyId= " + "(" + "SELECT companyId FROM companies WHERE realmID = " + "'" + accountId + "'" + " " + " AND ServiceType IN  ('IOP', 'FS') AND BillingMethod = 'C'" + ")" + " " +
+        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId=" + "'" + walletId + "'" +  " " +
+                "WHERE companyId= " + "(" + "SELECT companyId FROM companies WHERE realmID = " + "'" + accountId + "'" + " " + " AND ServiceType IN  ('IOP', 'FS')  AND  PartnerID NOT in ( 26,30 ) AND BillingMethod = 'C'" + ")" + " " +
                 "AND CardWalletId IS NULL" + " " +
                 "AND CCardNumberToken=" + "'" + cardTokenNumber + "'");
 
-
-        /*
-         * update company version
-         * Note: accountId is RealmId of a company but for companyid,
-         * we have to fetch company id corresponding to the realmid i.e. accountId here.
-         * why companyid if we can use realmid: since both are unique and realmid is more useful
-         *
-         * so Tauqeer's query need to updated, otherwise there will be un-necessary burden.
-         * discuss this with chitra and subho
-         */
         StringBuilder companyQueryBuilder = new StringBuilder();
-        //companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE CompanyId = " + accountId);
-        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + "'" + accountId + "'" + " AND ServiceType IN  ('IOP', 'FS') AND BillingMethod = 'C' ");
+        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1 WHERE RealmID =" + "'" + accountId + "'" + " AND ServiceType IN  ('IOP', 'FS') AND PartnerID NOT in ( 26,30 ) AND BillingMethod = 'C'");
 
         logger.info(cardWalletQueryBuilder.toString());
         logger.info(companyQueryBuilder.toString());
@@ -206,24 +188,16 @@ public class CreditCardSDTTOWalletConverter {
         // creating rollback query for credit card
         StringBuilder cardWalletQueryBuilder = new StringBuilder();
 
-        /*
-        UPDATE dbo.CompanySecrets SET CardWalletId = null, hk_modified = GETDATE()
-        WHERE CompanyId = <<param1>>
-        AND CCardNumberToken = '<<param2>>';
+        // print message to log in db console
+        cardWalletQueryBuilder.append("print" + " " + "'" + "realmID is : " + accountId + "'" + ";\n") ;
 
-        UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE CompanyId = <<param1>>;
-
-        -- <<param1>> : company id from converter service output file  ... (realmID)
-        -- <<param2>> : card token number referenced in the input file query... (cardNumber) in output file also.
-         */
-
-        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId = null, hk_modified = GETDATE()" + " " +
-                "WHERE companyId= " + "(" + "SELECT companyId FROM companies WHERE realmID = " + "'" + accountId + "'" + " " + " AND ServiceType IN  ('IOP', 'FS') AND BillingMethod = 'C'" + ")" + " " +
+        cardWalletQueryBuilder.append( "UPDATE dbo.CompanySecrets SET CardwalletId = null" + " " +
+                "WHERE companyId= " + "(" + "SELECT companyId FROM companies WHERE realmID = " + "'" + accountId + "'" + " " + " AND ServiceType IN  ('IOP', 'FS')  AND  PartnerID NOT in ( 26,30 ) AND BillingMethod = 'C'" + ")" + " " +
                 "AND CardWalletId IS NOT NULL" + " " +
-                "AND CCardNumberToken=" + "'" + cardTokenNumber + "'");
+                "AND CCardNumberToken=" + "'" + cardTokenNumber + "'") ;
 
         StringBuilder companyQueryBuilder = new StringBuilder();
-        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1, hk_modified = GETDATE() WHERE RealmID =" + "'" + accountId + "'" + " AND ServiceType IN  ('IOP', 'FS') AND BillingMethod = 'C'") ;
+        companyQueryBuilder.append("UPDATE dbo.Companies SET Version = Version + 1 WHERE RealmID =" + "'" + accountId + "'" + " AND ServiceType IN  ('IOP', 'FS')   AND  PartnerID NOT in ( 26,30 ) AND BillingMethod = 'C'");
 
         logger.info(cardWalletQueryBuilder.toString());
         logger.info(companyQueryBuilder.toString());
