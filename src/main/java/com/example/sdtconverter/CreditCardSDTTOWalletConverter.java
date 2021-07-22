@@ -22,6 +22,8 @@ public class CreditCardSDTTOWalletConverter {
     private static Logger logger = Logger.getLogger(CreditCardSDTTOWalletConverter.class.getName());
     private static Map<String, Integer> sdtWalletHeadersMap = new HashMap<>(); // to store imporatant columns which required in queries or error codes case
 
+    private static Map<String, Integer> ddRealmWalletHeadersMap = new HashMap<>(); // to store imporatant columns which required in queries or error codes case
+
     public static void formatExcelToColumns(String inputFileName, String outputFileName) throws IOException {
         ExcelUtil.readAndCreateExcel(inputFileName, outputFileName); // input file to read credit card
     }
@@ -209,4 +211,140 @@ public class CreditCardSDTTOWalletConverter {
     }
 
 
+    public static void createDDRemediationCSVFile() throws IOException {
+        File customDir = ExcelUtil.getUserHome();
+        String inputFile = "ddRemedBefore19Jul2021.xlsx";
+        File excel = new File(customDir + "/" + inputFile);
+
+        FileInputStream fileInputStream = new FileInputStream(excel);
+        XSSFWorkbook sdtToWalletWorkbook = new XSSFWorkbook(fileInputStream);
+        XSSFSheet sdtToWalletSheet = sdtToWalletWorkbook.getSheetAt(0);
+
+        File ddRemediation = new File(customDir + "/ddRemediationOutput" + System.currentTimeMillis() + ".xlsx");
+        FileOutputStream ddRemediationFileOutputStream = new FileOutputStream(ddRemediation);
+        XSSFWorkbook ddRemediationWorkbook = new XSSFWorkbook();
+        XSSFSheet ddRemediationSheet = ddRemediationWorkbook.createSheet();
+
+
+        // read output file and create update query : read |accountid|cardTokenNumber|walletId|errorCode
+        // store the 3 headers indexes in a hashmap
+        Row headers = sdtToWalletSheet.getRow(0);
+
+        // creating headers for error sheet
+        int erroRowCount = 0;
+        Row errorHeaders = ddRemediationSheet.createRow(erroRowCount++);
+
+        int cells = headers.getPhysicalNumberOfCells();
+        for (int cellIndex = 0; cellIndex < cells; cellIndex++) {
+
+            int errorColumnCount = 0;
+            Cell iIopRealmID = errorHeaders.createCell(errorColumnCount++);
+            iIopRealmID.setCellValue("CIOPCLIENTREALMID");
+            Cell wWalletID = errorHeaders.createCell(errorColumnCount++);
+            wWalletID.setCellValue("WWALLETID");
+            Cell iopRealmID = errorHeaders.createCell(errorColumnCount++);
+            iopRealmID.setCellValue("IOPCLIENTREALMID");
+            Cell walletID = errorHeaders.createCell(errorColumnCount++);
+            walletID.setCellValue("WALLETID");
+
+            Cell cell = headers.getCell(cellIndex);
+            switch (cell.toString().trim()) {
+                case "IOPCLIENTREALMIDWALLETID":
+                    ddRealmWalletHeadersMap.put("IOPCLIENTREALMIDWALLETID", cellIndex);                // keys must match with headers
+
+                 default:
+            }
+        }
+
+        // now, iterate the remaining rows
+        int rows = sdtToWalletSheet.getPhysicalNumberOfRows() - 1; // excluding headers
+        for (int r = 1; r <= rows; r++) {
+            Row sdtRow = sdtToWalletSheet.getRow(r);
+            int errorColumnCount = 0;
+
+            if (sdtRow != null) {
+                Cell iopRealmWalletID = sdtRow.getCell(ddRealmWalletHeadersMap.get("IOPCLIENTREALMIDWALLETID")); // read directly the header values by their column index
+
+                String[] walletIdString = iopRealmWalletID.toString().split("W");
+                String ciopRealmID =  walletIdString[0]; // at 1th index will be the wallet id
+                String walletID =  walletIdString[1];
+                String iopRealmID = ciopRealmID.substring(1);
+                String wWalletId = "W" + walletID;
+                System.out.println(iopRealmID +" "+ walletID + " " + ciopRealmID + " " + wWalletId);
+
+                // order is important here
+                Row errorRow = ddRemediationSheet.createRow(erroRowCount++);//errror case
+                // set accounId|cardNumber|errorCode in error sheet
+                Cell ciopRealmIDCell = errorRow.createCell(errorColumnCount++);
+                ciopRealmIDCell.setCellValue(ExcelUtil.trimWhiteSpaces(ExcelUtil.trimQuotesBorder(ciopRealmID.toString())));
+
+                Cell wwalletIDCell = errorRow.createCell(errorColumnCount++);
+                wwalletIDCell.setCellValue(ExcelUtil.trimWhiteSpaces(ExcelUtil.trimQuotesBorder(wWalletId.toString())));
+
+                //C
+                Cell iopRealmIDCell = errorRow.createCell(errorColumnCount++);
+                iopRealmIDCell.setCellValue(ExcelUtil.trimWhiteSpaces(ExcelUtil.trimQuotesBorder(iopRealmID.toString())));
+                //D
+                Cell walletIdCell = errorRow.createCell(errorColumnCount++);
+                walletIdCell.setCellValue(ExcelUtil.trimWhiteSpaces(ExcelUtil.trimQuotesBorder(walletID.toString())));
+
+            }
+        }
+        ddRemediationWorkbook.write(ddRemediationFileOutputStream);
+        ddRemediationFileOutputStream.close();
+    }
+
+
+    public static void ddRemediationWallet() throws IOException, Exception {
+        createDDRemediationCSVFile();
+
+        // xlsx to csv converter
+        File customDir = ExcelUtil.getUserHome();
+        String inputFile = "ddRemediationOutput1626962298646.xlsx";
+        File excel = new File(customDir + "/" + inputFile);
+
+        ExcelUtil.convertXLXSFileToCSV(excel, 0, customDir);
+    }
+
+    public static void WalletConverter() {
+        try {
+            // read from user home directory : input
+            String path = System.getProperty("user.home") + File.separator + "Desktop";
+            path += File.separator + "Converter";			//File dir = new File(xmlFilesDirectory);
+            //creditCard_output_PB_7jun_41k_1
+
+            // creditCard_output_PB_*.csv to excel
+            File latestFileCsv = ExcelUtil.getLastModified(path, "creditCard_output_PB_", ".csv");
+            if (latestFileCsv == null) {
+                throw new Exception("file not found! Kindly provide the pb output file");
+            }
+
+            String getFileNameOnly = ExcelUtil.removeFileExtention(latestFileCsv.getName());
+            ExcelUtil.convertCsvToXls(path, latestFileCsv.getAbsolutePath(), getFileNameOnly);
+
+            File latestFileXlsx = ExcelUtil.getLastModified(path, "creditCard_output_PB_", ".xlsx");
+            if (latestFileXlsx == null) {
+                throw new Exception("file not found! the pb output file: xlsx not created");
+            }
+
+            // CREDTI CARD
+            // now read the formatted output file and get values to create the queries
+            CreditCardSDTTOWalletConverter.createCreditCardWalletIdQuery(latestFileXlsx.getAbsolutePath());
+            System.out.println("query created");
+
+/*
+			// DIRECT DEBIT
+			DirectDebitSDTTOWalletConverter.formatExcelToColumns(SDT_FILE_PATH_DIRECT_DEBIT, FORMATTED_OUTPUT_DIRECT_DEBIT);
+			System.out.println("success!");
+			// now read the formatted output file and get values to create the queries
+			DirectDebitSDTTOWalletConverter.createDirectDebitWalletIdQuery(FORMATTED_OUTPUT_DIRECT_DEBIT);
+			System.out.println("query created");
+*/
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }

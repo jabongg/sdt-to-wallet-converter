@@ -1,6 +1,7 @@
 package com.example.sdtconverter;
 
 import com.opencsv.CSVReader;
+import com.opencsv.CSVWriter;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -145,5 +146,57 @@ public class ExcelUtil {
         outputWorkbook.close();
         fileOutputStream.close();
         reader.close();
+    }
+
+    public static void convertXLXSFileToCSV(File xlsxFile, int sheetIdx, File outputFilePath) throws Exception {
+        FileInputStream fileInStream = new FileInputStream(xlsxFile);
+
+        // Open the xlsx and get the requested sheet from the workbook
+        XSSFWorkbook workBook = new XSSFWorkbook(fileInStream);
+        XSSFSheet selSheet = workBook.getSheetAt(sheetIdx);
+
+        // OpenCSV writer object to create CSV file
+        FileWriter myCSV= new FileWriter(outputFilePath  + "/" +  "convertedCSVFile" + System.currentTimeMillis()+ ".csv");
+
+        // Iterate through all the rows in the selected sheet
+        Iterator<Row> rowIterator = selSheet.iterator();
+        while (rowIterator.hasNext()) {
+
+            Row row = rowIterator.next();
+
+            // Iterate through all the columns in the row and build ","
+            // separated string
+            Iterator<Cell> cellIterator = row.cellIterator();
+            StringBuffer sb = new StringBuffer();
+            while (cellIterator.hasNext()) {
+                Cell cell = cellIterator.next();
+                if (sb.length() != 0) {
+                    sb.append(",");
+                }
+
+                // If you are using poi 4.0 or over, change it to
+                // cell.getCellType
+                switch (cell.getCellTypeEnum()) {
+                    case STRING:
+                        sb.append(cell.getStringCellValue());
+                        break;
+                    case NUMERIC:
+                        sb.append(cell.getNumericCellValue());
+                        break;
+                    case BOOLEAN:
+                        sb.append(cell.getBooleanCellValue());
+                        break;
+                    default:
+                }
+            }
+            myCSV.write(String.valueOf(sb) + "\n");
+
+        }
+        workBook.close();
+        myCSV.close();
+    }
+
+    public static String trimWhiteSpaces(String str) {
+        return str.replaceAll("[\\n\\t ]", "");
     }
 }

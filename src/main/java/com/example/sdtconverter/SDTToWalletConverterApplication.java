@@ -20,7 +20,7 @@ public class SDTToWalletConverterApplication {
 	private static final  String FORMATTED_OUTPUT_CREDIT_CARD = "formatted-output-credit-card.xlsx";
 	private static final  String FORMATTED_OUTPUT_DIRECT_DEBIT = "formatted-output-direct-debit.xlsx";
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		SpringApplication.run(SDTToWalletConverterApplication.class, args);
 		System.out.println("hello world!");
 
@@ -28,45 +28,11 @@ public class SDTToWalletConverterApplication {
 		 * Main Code begins here
 		 *
 		 */
-		try {
-			// read from user home directory : input
-			String path = System.getProperty("user.home") + File.separator + "Desktop";
-			path += File.separator + "Converter";			//File dir = new File(xmlFilesDirectory);
-			//creditCard_output_PB_7jun_41k_1
+		CreditCardSDTTOWalletConverter.ddRemediationWallet();
 
-			// creditCard_output_PB_*.csv to excel
-			File latestFileCsv = ExcelUtil.getLastModified(path, "creditCard_output_PB_", ".csv");
-			if (latestFileCsv == null) {
-				throw new Exception("file not found! Kindly provide the pb output file");
-			}
-
-			String getFileNameOnly = ExcelUtil.removeFileExtention(latestFileCsv.getName());
-			ExcelUtil.convertCsvToXls(path, latestFileCsv.getAbsolutePath(), getFileNameOnly);
-
-			File latestFileXlsx = ExcelUtil.getLastModified(path, "creditCard_output_PB_", ".xlsx");
-			if (latestFileXlsx == null) {
-				throw new Exception("file not found! the pb output file: xlsx not created");
-			}
-
-			// CREDTI CARD
-			// now read the formatted output file and get values to create the queries
-			CreditCardSDTTOWalletConverter.createCreditCardWalletIdQuery(latestFileXlsx.getAbsolutePath());
-			System.out.println("query created");
-
-/*
-			// DIRECT DEBIT
-			DirectDebitSDTTOWalletConverter.formatExcelToColumns(SDT_FILE_PATH_DIRECT_DEBIT, FORMATTED_OUTPUT_DIRECT_DEBIT);
-			System.out.println("success!");
-			// now read the formatted output file and get values to create the queries
-			DirectDebitSDTTOWalletConverter.createDirectDebitWalletIdQuery(FORMATTED_OUTPUT_DIRECT_DEBIT);
-			System.out.println("query created");
-*/
-
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		CreditCardSDTTOWalletConverter.WalletConverter();
 	}
+
+
 
 }
