@@ -306,8 +306,27 @@ public class CreditCardSDTTOWalletConverter {
         ExcelUtil.convertXLXSFileToCSV(excel, 0, customDir);
     }
 
-    public static void WalletConverter() {
+    public static void WalletConverter() throws IOException {
+        // CREDTI CARD
+        //CreditCardSDTToWalletConversion();
+
+        // DIRECT DEBIT
+        DirectDebitSDTToWalletConversion();
+
+
+    }
+
+    private static void DirectDebitSDTToWalletConversion() throws IOException {
+        DirectDebitSDTTOWalletConverter.formatExcelToColumns("SDT_FILE_PATH_DIRECT_DEBIT", "FORMATTED_OUTPUT_DIRECT_DEBIT"); //TODO
+        System.out.println("success!");
+        // now read the formatted output file and get values to create the queries
+        DirectDebitSDTTOWalletConverter.createDirectDebitWalletIdQuery("FORMATTED_OUTPUT_DIRECT_DEBIT");
+        System.out.println("query created");
+    }
+
+    private static void CreditCardSDTToWalletConversion() {
         try {
+
             // read from user home directory : input
             String path = System.getProperty("user.home") + File.separator + "Desktop";
             path += File.separator + "Converter";			//File dir = new File(xmlFilesDirectory);
@@ -327,19 +346,10 @@ public class CreditCardSDTTOWalletConverter {
                 throw new Exception("file not found! the pb output file: xlsx not created");
             }
 
-            // CREDTI CARD
             // now read the formatted output file and get values to create the queries
             CreditCardSDTTOWalletConverter.createCreditCardWalletIdQuery(latestFileXlsx.getAbsolutePath());
             System.out.println("query created");
 
-/*
-			// DIRECT DEBIT
-			DirectDebitSDTTOWalletConverter.formatExcelToColumns(SDT_FILE_PATH_DIRECT_DEBIT, FORMATTED_OUTPUT_DIRECT_DEBIT);
-			System.out.println("success!");
-			// now read the formatted output file and get values to create the queries
-			DirectDebitSDTTOWalletConverter.createDirectDebitWalletIdQuery(FORMATTED_OUTPUT_DIRECT_DEBIT);
-			System.out.println("query created");
-*/
 
         } catch (IOException e) {
             e.printStackTrace();

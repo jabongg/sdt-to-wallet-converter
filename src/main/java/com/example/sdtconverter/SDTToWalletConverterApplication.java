@@ -28,7 +28,7 @@ public class SDTToWalletConverterApplication {
 		 * Main Code begins here
 		 *
 		 */
-		CreditCardSDTTOWalletConverter.ddRemediationWallet();
+		//CreditCardSDTTOWalletConverter.ddRemediationWallet();
 
 		CreditCardSDTTOWalletConverter.WalletConverter();
 	}
