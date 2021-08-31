@@ -6,11 +6,10 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.util.ObjectUtils;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -23,6 +22,8 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
 
     private static Logger logger = Logger.getLogger(DirectDebitSDTTOWalletConverter.class.getName());
     private static Map<String, Integer> sdtWalletHeadersMap = new HashMap<>(); // to store imporatant columns which required in queries or error codes case
+    private static Map<String, Integer> sdtWalletDetokenizeHeadersMap = new HashMap<>();
+    private static Map<String, DetokenizePOJO> detokenizePOJOMap = new HashMap<>(); //using map as cache which will later be looked upon
 
     public static void formatExcelToColumns(String inputFileName, String outputFileName) throws IOException {
         ExcelUtil.readAndCreateExcel(inputFileName, outputFileName); // input file to read credit card
@@ -103,10 +104,10 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
 
                     break;
                 case "walletId":
-                    sdtWalletHeadersMap.put("walletId", cellIndex);                  // keys must match with headers.. no need to store wallet id as it will be always null i case of error
+                    sdtWalletHeadersMap.put("walletId", cellIndex);                  // keys must match with headers.. no need to store wallet id as it will be always null in case of error
                     break;
                 case "bankCode": // for routing number, which value to be mapped from input file  : is it bankCode?
-                    sdtWalletHeadersMap.put("bankCode", cellIndex);                  // keys must match with headers.. no need to store wallet id as it will be always null i case of error
+                    sdtWalletHeadersMap.put("bankCode", cellIndex);                  // keys must match with headers.. no need to store wallet id as it will be always null in case of error
                     break;
                 case "errorCode":
                     sdtWalletHeadersMap.put("errorCode", cellIndex);
@@ -256,12 +257,55 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
 
     @Override
     public void walletConverter() throws Exception {
+
         // DIRECT DEBIT
-        DirectDebitSDTToWalletConversion();
+        createDirectDebitInputFileWithDetokenizedBankCode();
+        //directDebitSDTToWalletConversion();
+
+
+    }
+
+    private void createDirectDebitInputFileWithDetokenizedBankCode() throws Exception {
+        // read from user home directory : input
+        String path = System.getProperty("user.home") + File.separator + "Desktop";
+        path += File.separator + "Converter/token";			//File dir = new File(xmlFilesDirectory);
+
+        // creditCard_output_PB_*.csv to excel
+        File latestInputFileCsv = ExcelUtil.getLastModified(path, "directDebit_decryptedBankcodeSheet", ".csv");
+        if (latestInputFileCsv == null) {
+            throw new Exception("file not found! Kindly provide the pb output file");
+        }
+
+        String getFileNameOnly = ExcelUtil.removeFileExtention(latestInputFileCsv.getName());
+        ExcelUtil.convertCsvToXls(path, latestInputFileCsv.getAbsolutePath(), getFileNameOnly);
+
+        File latestFileXlsx = ExcelUtil.getLastModified(path, "directDebit_decryptedBankcodeSheet", ".xlsx");
+        if (latestFileXlsx == null) {
+            throw new Exception("file not found! the pb output file: xlsx not created");
+        }
+
+        // TODO : read this excel and put it to hashmap which will later be used for lookup
+        addDetokenizedValueWalletIdToMap(latestFileXlsx.getAbsolutePath());
+
+        // TODO: read the input_pb excel and replace the bankcode with corresponding value in the cache map
+        //keep file backup before overriding
+        backupFileBeforeOverriding(latestFileXlsx, new File(path + "/directDebit_decryptedBankcodeSheet_backup.xlsx"));
+        System.out.println("File backup done");
+
+        //start reading overriding the input file bankcode with corresponding received detokenized value
+        createExcpectedInputFile();
+
+    }
+
+    private void createExcpectedInputFile() {
+    }
+
+    private void backupFileBeforeOverriding(File source, File dest) throws IOException {
+        Files.copy(source.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
     }
 
 
-    private static void DirectDebitSDTToWalletConversion() throws Exception {
+    private static void directDebitSDTToWalletConversion() throws Exception {
 
         // read from user home directory : input
         String path = System.getProperty("user.home") + File.separator + "Desktop";
@@ -282,7 +326,7 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
         }
 
         // now read the formatted output file and get values to create the queries
-        //CreditCardSDTTOWalletConverter.addDetokenizedValueWalletId(latestFileXlsx.getAbsolutePath()); //TODO
+        // DirectDebitSDTTOWalletConverter.addDetokenizedValueWalletId(latestFileXlsx.getAbsolutePath()); //TODO
         //System.out.println("file with detokenized value is created");
 
 
@@ -293,4 +337,54 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
         System.out.println("query created");
     }
 
+    static void addDetokenizedValueWalletIdToMap(String absolutePath) throws IOException {
+        File excel = new File(absolutePath);
+
+        FileInputStream fileInputStream = new FileInputStream(excel);
+        XSSFWorkbook detokenizeWorkbook = new XSSFWorkbook(fileInputStream);
+        XSSFSheet detokenizeSheet = detokenizeWorkbook.getSheetAt(0);
+
+        Row headers = detokenizeSheet.getRow(0); //read headers
+
+        int cells = headers.getPhysicalNumberOfCells();
+        for (int cellIndex = 0; cellIndex < cells; cellIndex++) {
+            Cell cell = headers.getCell(cellIndex);
+            switch (cell.toString().trim()) {
+                case "accountId":
+                    sdtWalletDetokenizeHeadersMap.put("accountId", cellIndex);                  // keys must match with headers
+                    break;
+
+                case "decryptedddcardnumber":
+                    sdtWalletDetokenizeHeadersMap.put("decryptedddcardnumber", cellIndex);      // keys must match with headers
+                    break;
+
+                case "encryptedbankcode":
+                    sdtWalletDetokenizeHeadersMap.put("encryptedbankcode", cellIndex);          // keys must match with headers.. no need to store wallet id as it will be always null in case of error
+                    break;
+
+                default:
+            }
+        }
+
+        // now, iterate the remaining rows
+        int rows = detokenizeSheet.getPhysicalNumberOfRows() - 1; // excluding headers
+        for (int r = 1; r <= rows; r++) {
+            Row sdtRow = detokenizeSheet.getRow(r);
+
+            if (sdtRow != null) {
+                Cell accountId = sdtRow.getCell(sdtWalletDetokenizeHeadersMap.get("accountId")); // read directly the header values by their column index
+                Cell decryptedddcardnumber = sdtRow.getCell(sdtWalletDetokenizeHeadersMap.get("decryptedddcardnumber")); // read directly the header values by their column index
+                Cell encryptedbankcode = sdtRow.getCell(sdtWalletDetokenizeHeadersMap.get("encryptedbankcode")); // read directly the header values by their column index
+
+                // now, put these values to map as cache
+                DetokenizePOJO detokenizePOJO = new DetokenizePOJO();
+                detokenizePOJO.setAccountId(accountId.getStringCellValue());
+                detokenizePOJO.setDecryptedddcardnumber(decryptedddcardnumber.getStringCellValue());
+                detokenizePOJO.setEncryptedbankcode(encryptedbankcode.getStringCellValue());
+                detokenizePOJOMap.put(detokenizePOJO.getAccountId(), detokenizePOJO);
+
+                System.out.println(detokenizePOJO);
+            }
+        }
+    }
 }

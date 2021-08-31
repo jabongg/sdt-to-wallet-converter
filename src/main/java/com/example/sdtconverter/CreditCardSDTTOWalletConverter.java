@@ -308,8 +308,6 @@ public class CreditCardSDTTOWalletConverter implements WalletConverter {
 
 
 
-    private static void addDetokenizedValueWalletId(String absolutePath) {
-    }
 
     private static void CreditCardSDTToWalletConversion() {
         try {
