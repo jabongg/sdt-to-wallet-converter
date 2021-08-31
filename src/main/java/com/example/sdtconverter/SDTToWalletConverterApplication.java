@@ -30,7 +30,11 @@ public class SDTToWalletConverterApplication {
 		 */
 		//CreditCardSDTTOWalletConverter.ddRemediationWallet();
 
-		CreditCardSDTTOWalletConverter.WalletConverter();
+		//creditcard
+		//new CreditCardSDTTOWalletConverter().walletConverter();
+
+		//directdebit
+		new DirectDebitSDTTOWalletConverter().walletConverter();
 	}
 
 

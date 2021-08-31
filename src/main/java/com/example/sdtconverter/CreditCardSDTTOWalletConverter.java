@@ -17,7 +17,7 @@ import static com.example.sdtconverter.ExcelUtil.trimQuotesBorder;
 
 // @author : @jpatel10 June.4.2021
 
-public class CreditCardSDTTOWalletConverter {
+public class CreditCardSDTTOWalletConverter implements WalletConverter {
 
     private static Logger logger = Logger.getLogger(CreditCardSDTTOWalletConverter.class.getName());
     private static Map<String, Integer> sdtWalletHeadersMap = new HashMap<>(); // to store imporatant columns which required in queries or error codes case
@@ -306,22 +306,9 @@ public class CreditCardSDTTOWalletConverter {
         ExcelUtil.convertXLXSFileToCSV(excel, 0, customDir);
     }
 
-    public static void WalletConverter() throws IOException {
-        // CREDTI CARD
-        //CreditCardSDTToWalletConversion();
-
-        // DIRECT DEBIT
-        DirectDebitSDTToWalletConversion();
 
 
-    }
-
-    private static void DirectDebitSDTToWalletConversion() throws IOException {
-        DirectDebitSDTTOWalletConverter.formatExcelToColumns("SDT_FILE_PATH_DIRECT_DEBIT", "FORMATTED_OUTPUT_DIRECT_DEBIT"); //TODO
-        System.out.println("success!");
-        // now read the formatted output file and get values to create the queries
-        DirectDebitSDTTOWalletConverter.createDirectDebitWalletIdQuery("FORMATTED_OUTPUT_DIRECT_DEBIT");
-        System.out.println("query created");
+    private static void addDetokenizedValueWalletId(String absolutePath) {
     }
 
     private static void CreditCardSDTToWalletConversion() {
@@ -356,5 +343,11 @@ public class CreditCardSDTTOWalletConverter {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void walletConverter() throws Exception {
+        // CREDTI CARD
+        CreditCardSDTToWalletConversion();
     }
 }

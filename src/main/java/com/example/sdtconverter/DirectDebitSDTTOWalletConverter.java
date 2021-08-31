@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 
 // @author : @jpatel10 June.6.2021
 
-public class DirectDebitSDTTOWalletConverter {
+public class DirectDebitSDTTOWalletConverter implements WalletConverter {
 
     private static Logger logger = Logger.getLogger(DirectDebitSDTTOWalletConverter.class.getName());
     private static Map<String, Integer> sdtWalletHeadersMap = new HashMap<>(); // to store imporatant columns which required in queries or error codes case
@@ -50,14 +50,14 @@ public class DirectDebitSDTTOWalletConverter {
     public static void createDirectDebitWalletIdQuery(String inputFile) throws IOException {
         File customDir = ExcelUtil.getUserHome();
 
-        File excel = new File(customDir + "/" + inputFile);
+        File excel = new File(inputFile);
         FileInputStream fileInputStream = new FileInputStream(excel);
         XSSFWorkbook sdtDirectDebitToWalletWorkbook = new XSSFWorkbook(fileInputStream);
         XSSFSheet sdtDirectDebitToWalletSheet = sdtDirectDebitToWalletWorkbook.getSheetAt(0);
 
         //write queries created to a .sql file
-        File directDebitWalletIdUpdateSql = new File(customDir + "/direct-debit-wallet-id-update.txt");
-        File directDebitWalletIdRollbackSql = new File(customDir + "/direct-debit-wallet-id-rollback.txt");
+        File directDebitWalletIdUpdateSql = new File(customDir + "/direct-debit-wallet-id-update.sql");
+        File directDebitWalletIdRollbackSql = new File(customDir + "/direct-debit-wallet-id-rollback.sql");
 
         FileOutputStream directDebitWalletIdUpdateOutputStream = new FileOutputStream(directDebitWalletIdUpdateSql);
         FileOutputStream directDebitWalletIdRollbackOutputStream = new FileOutputStream(directDebitWalletIdRollbackSql);
@@ -180,7 +180,7 @@ public class DirectDebitSDTTOWalletConverter {
 
         StringBuilder directDebitWalletQueryBuilder = new StringBuilder();
 
-        directDebitWalletQueryBuilder.append("UPDATE dbo.BillingBankAccountInfo SET BankWalletId =" +  "'"+ walletId+ "'" + ", + hk_modified = GETDATE()" +
+        directDebitWalletQueryBuilder.append("UPDATE dbo.BillingBankAccountInfo SET BankWalletId =" +  "'"+ walletId+ "'" + ", + hk_modified = GETDATE()"+ " " +
                 "WHERE CompanyId =" + "'"  + accountId.toString()+ "'" + " " +
                 "AND BankWalletId IS NULL" + " " +
                 "AND AccountNumber =" +  "'" + accountNumberLastFour + "'" + " " +
@@ -252,6 +252,45 @@ public class DirectDebitSDTTOWalletConverter {
         directDebitWalletIdRollbackOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
         directDebitWalletIdRollbackOutputStream.write((new String(companyQueryBuilder).getBytes(StandardCharsets.UTF_8)));
         directDebitWalletIdRollbackOutputStream.write(";\n".getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Override
+    public void walletConverter() throws Exception {
+        // DIRECT DEBIT
+        DirectDebitSDTToWalletConversion();
+    }
+
+
+    private static void DirectDebitSDTToWalletConversion() throws Exception {
+
+        // read from user home directory : input
+        String path = System.getProperty("user.home") + File.separator + "Desktop";
+        path += File.separator + "Converter";			//File dir = new File(xmlFilesDirectory);
+
+        // creditCard_output_PB_*.csv to excel
+        File latestFileCsv = ExcelUtil.getLastModified(path, "directDebit_output_PB_", ".csv");
+        if (latestFileCsv == null) {
+            throw new Exception("file not found! Kindly provide the pb output file");
+        }
+
+        String getFileNameOnly = ExcelUtil.removeFileExtention(latestFileCsv.getName());
+        ExcelUtil.convertCsvToXls(path, latestFileCsv.getAbsolutePath(), getFileNameOnly);
+
+        File latestFileXlsx = ExcelUtil.getLastModified(path, "directDebit_output_PB_", ".xlsx");
+        if (latestFileXlsx == null) {
+            throw new Exception("file not found! the pb output file: xlsx not created");
+        }
+
+        // now read the formatted output file and get values to create the queries
+        //CreditCardSDTTOWalletConverter.addDetokenizedValueWalletId(latestFileXlsx.getAbsolutePath()); //TODO
+        //System.out.println("file with detokenized value is created");
+
+
+        //DirectDebitSDTTOWalletConverter.formatExcelToColumns("SDT_FILE_PATH_DIRECT_DEBIT", "FORMATTED_OUTPUT_DIRECT_DEBIT"); //TODO
+        // System.out.println("success!");
+        // now read the formatted output file and get values to create the queries
+        DirectDebitSDTTOWalletConverter.createDirectDebitWalletIdQuery(latestFileXlsx.getAbsolutePath());
+        System.out.println("query created");
     }
 
 }
