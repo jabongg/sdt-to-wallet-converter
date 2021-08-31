@@ -2,6 +2,7 @@ package com.example.sdtconverter;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.util.ObjectUtils;
@@ -293,11 +294,90 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
         System.out.println("File backup done");
 
         //start reading overriding the input file bankcode with corresponding received detokenized value
-        createExcpectedInputFile();
+        File latestInputFileXlsx = ExcelUtil.getLastModified(path, "directDebit_input_PB_", ".xlsx");
+
+        createExcpectedInputFile(latestInputFileXlsx.getAbsolutePath(), path);
 
     }
 
-    private void createExcpectedInputFile() {
+    private void createExcpectedInputFile(String absolutePath, String path) throws IOException {
+        // read accountnumber and decryptedddcardnumber from the input excel
+        Map<String, Integer> accNumDDDecryptedCardNumMap = new HashMap<>();
+
+        File excel = new File(absolutePath);
+
+        FileInputStream fileInputStream = new FileInputStream(excel);
+        XSSFWorkbook inputDDWorkbook = new XSSFWorkbook(fileInputStream);
+        XSSFSheet inputDDWorkSheet = inputDDWorkbook.getSheetAt(0);
+
+
+        FileOutputStream fileOutputStream = new FileOutputStream(path + "/_123.xlsx");
+        XSSFWorkbook outputDDWorkbook = new XSSFWorkbook();
+        XSSFSheet outputDDWorkSheet = outputDDWorkbook.createSheet();
+
+        Row headers = inputDDWorkSheet.getRow(0); //read headers
+
+        int ddRowCount = 0;
+        Row ddHeaders = outputDDWorkSheet.createRow(ddRowCount++);
+
+        int cells = headers.getPhysicalNumberOfCells();
+        for (int cellIndex = 0; cellIndex < cells; cellIndex++) {
+            Cell cell = headers.getCell(cellIndex);
+
+            // getting value from inputsheet and setting the value to outputsheet row / column
+            ddHeaders.createCell(cellIndex).setCellValue(String.valueOf(cell));
+
+            switch (cell.toString().trim()) {
+                case "accountId":
+                    accNumDDDecryptedCardNumMap.put("accountId", cellIndex);                  // keys must match with headers
+                    break;
+
+                case "bankCode":
+                    accNumDDDecryptedCardNumMap.put("bankCode", cellIndex);      // keys must match with headers
+                    break;
+
+                default:
+            }
+        }
+
+        // now, iterate the remaining rows
+        int rows = inputDDWorkSheet.getPhysicalNumberOfRows() - 1; // excluding headers
+        for (int r = 1; r <= rows; r++) {
+            Row sdtRow = inputDDWorkSheet.getRow(r);
+            Row ddRow = outputDDWorkSheet.createRow(r);
+
+            // get all cell values and write to new sheet
+            for (int cellIndex = 0; cellIndex < cells; cellIndex++) {
+                Cell cell = sdtRow.getCell(cellIndex);
+
+                if (sdtRow != null) {
+                    Cell bankcode = sdtRow.getCell(accNumDDDecryptedCardNumMap.get("bankCode")); // read directly the header values by their column index
+                    Cell accountId = sdtRow.getCell(accNumDDDecryptedCardNumMap.get("accountId")); // read directly the header values by their column index
+
+                    // getting value from inputsheet and setting the value to outputsheet row / column
+                    ddRow.createCell(cellIndex).setCellValue(String.valueOf(cell)); // read from input sheet and create the cell with exact value
+
+
+                    // now, lookup into the map as cache
+                    if (!detokenizePOJOMap.isEmpty() && detokenizePOJOMap.containsKey(accountId.getStringCellValue())) {
+                        // get corresponding detokenized value from the map
+                        bankcode.setCellValue(detokenizePOJOMap.get(accountId.getStringCellValue()).getDecryptedddcardnumber()); //overwriting the value
+                        System.out.println("Test Data From Excel : "+bankcode);
+                    } else {
+                        ddRow.getCell(cellIndex).setCellValue(String.valueOf("")); // read from input sheet and create the cell with exact value
+
+                        // TODO: delete the rows which are not present (empty row after update) in the cache and save them to a new file as reference
+                    }
+
+                }
+            }
+
+
+        }
+
+        outputDDWorkbook.write(fileOutputStream);
+        inputDDWorkbook.close();
+        fileInputStream.close();
     }
 
     private void backupFileBeforeOverriding(File source, File dest) throws IOException {
@@ -325,13 +405,6 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
             throw new Exception("file not found! the pb output file: xlsx not created");
         }
 
-        // now read the formatted output file and get values to create the queries
-        // DirectDebitSDTTOWalletConverter.addDetokenizedValueWalletId(latestFileXlsx.getAbsolutePath()); //TODO
-        //System.out.println("file with detokenized value is created");
-
-
-        //DirectDebitSDTTOWalletConverter.formatExcelToColumns("SDT_FILE_PATH_DIRECT_DEBIT", "FORMATTED_OUTPUT_DIRECT_DEBIT"); //TODO
-        // System.out.println("success!");
         // now read the formatted output file and get values to create the queries
         DirectDebitSDTTOWalletConverter.createDirectDebitWalletIdQuery(latestFileXlsx.getAbsolutePath());
         System.out.println("query created");
