@@ -303,7 +303,7 @@ public class CreditCardSDTTOWalletConverter implements WalletConverter {
         String inputFile = "ddRemediationOutput1626962298646.xlsx";
         File excel = new File(customDir + "/" + inputFile);
 
-        ExcelUtil.convertXLXSFileToCSV(excel, 0, customDir);
+        ExcelUtil.convertXLXSFileToCSV(excel, 0, customDir, "convertedCSVFile" + System.currentTimeMillis()+ ".csv");
     }
 
 

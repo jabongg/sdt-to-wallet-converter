@@ -261,7 +261,7 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
 
         // DIRECT DEBIT
         createDirectDebitInputFileWithDetokenizedBankCode();
-        //directDebitSDTToWalletConversion();
+        directDebitSDTToWalletConversion();
 
 
     }
@@ -298,8 +298,20 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
 
         createExcpectedInputFile(latestInputFileXlsx.getAbsolutePath(), path);
 
+        // xlsx to csv converter
+        File customDir = ExcelUtil.getUserHome();
+        String inputFile = "_123.xlsx";
+        File excel = new File(customDir + "/token/" + inputFile);
+
+        ExcelUtil.convertXLXSFileToCSV(excel, 0, customDir, "directDebit_output_pb_" + System.currentTimeMillis()+ ".csv");
     }
 
+    /**
+     * https://wiki.intuit.com/display/EBSPaymentsStrategy/Converter+Service%3A+CSV+file+fields
+     * @param absolutePath
+     * @param path
+     * @throws IOException
+     */
     private void createExcpectedInputFile(String absolutePath, String path) throws IOException {
         // read accountnumber and decryptedddcardnumber from the input excel
         Map<String, Integer> accNumDDDecryptedCardNumMap = new HashMap<>();
@@ -310,15 +322,21 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
         XSSFWorkbook inputDDWorkbook = new XSSFWorkbook(fileInputStream);
         XSSFSheet inputDDWorkSheet = inputDDWorkbook.getSheetAt(0);
 
+        FileOutputStream companiesNotPresentOutputStream = new FileOutputStream(path + "/_companies_not_present_123.xlsx");
+        XSSFWorkbook companiesNotPresentDDWorkbook = new XSSFWorkbook();
+        XSSFSheet companiesNotPresentDDWorkSheet = companiesNotPresentDDWorkbook.createSheet();
+
 
         FileOutputStream fileOutputStream = new FileOutputStream(path + "/_123.xlsx");
         XSSFWorkbook outputDDWorkbook = new XSSFWorkbook();
         XSSFSheet outputDDWorkSheet = outputDDWorkbook.createSheet();
 
         Row headers = inputDDWorkSheet.getRow(0); //read headers
-
         int ddRowCount = 0;
         Row ddHeaders = outputDDWorkSheet.createRow(ddRowCount++);
+
+        int compNotDetokenizedCount = 0;
+        Row companyNotDetokenizedHeaders = companiesNotPresentDDWorkSheet.createRow(compNotDetokenizedCount++);
 
         int cells = headers.getPhysicalNumberOfCells();
         for (int cellIndex = 0; cellIndex < cells; cellIndex++) {
@@ -326,6 +344,7 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
 
             // getting value from inputsheet and setting the value to outputsheet row / column
             ddHeaders.createCell(cellIndex).setCellValue(String.valueOf(cell));
+            companyNotDetokenizedHeaders.createCell(cellIndex).setCellValue(String.valueOf(cell));
 
             switch (cell.toString().trim()) {
                 case "accountId":
@@ -345,39 +364,53 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
         for (int r = 1; r <= rows; r++) {
             Row sdtRow = inputDDWorkSheet.getRow(r);
             Row ddRow = outputDDWorkSheet.createRow(r);
+            Row companiesNotPresentRow = companiesNotPresentDDWorkSheet.createRow(r);
+
+            Cell bankcode = sdtRow.getCell(accNumDDDecryptedCardNumMap.get("bankCode")); // read directly the header values by their column index
+            Cell accountId = sdtRow.getCell(accNumDDDecryptedCardNumMap.get("accountId")); // read directly the header values by their column index
+
+
+            // now, lookup into the map as cache
+            if (!detokenizePOJOMap.isEmpty() && detokenizePOJOMap.containsKey(accountId.getStringCellValue())) {
+                // get corresponding detokenized value from the map
+                bankcode.setCellValue(detokenizePOJOMap.get(accountId.getStringCellValue()).getDecryptedddcardnumber()); //overwriting the value
+                System.out.println("Test Data From Excel : "+bankcode);
+            } else {
+                // get all cell values and write to new sheet
+                for (int cellIndex = 0; cellIndex < cells; cellIndex++) {
+                    Cell cell = sdtRow.getCell(cellIndex);
+                    if (sdtRow != null) {
+                        companiesNotPresentRow.createCell(cellIndex).setCellValue(String.valueOf(cell)); // read from input sheet and create the cell with exact value
+                    }
+                }
+                continue;
+            }
 
             // get all cell values and write to new sheet
             for (int cellIndex = 0; cellIndex < cells; cellIndex++) {
                 Cell cell = sdtRow.getCell(cellIndex);
 
+
                 if (sdtRow != null) {
-                    Cell bankcode = sdtRow.getCell(accNumDDDecryptedCardNumMap.get("bankCode")); // read directly the header values by their column index
-                    Cell accountId = sdtRow.getCell(accNumDDDecryptedCardNumMap.get("accountId")); // read directly the header values by their column index
 
                     // getting value from inputsheet and setting the value to outputsheet row / column
                     ddRow.createCell(cellIndex).setCellValue(String.valueOf(cell)); // read from input sheet and create the cell with exact value
-
-
-                    // now, lookup into the map as cache
-                    if (!detokenizePOJOMap.isEmpty() && detokenizePOJOMap.containsKey(accountId.getStringCellValue())) {
-                        // get corresponding detokenized value from the map
-                        bankcode.setCellValue(detokenizePOJOMap.get(accountId.getStringCellValue()).getDecryptedddcardnumber()); //overwriting the value
-                        System.out.println("Test Data From Excel : "+bankcode);
-                    } else {
-                        ddRow.getCell(cellIndex).setCellValue(String.valueOf("")); // read from input sheet and create the cell with exact value
-
-                        // TODO: delete the rows which are not present (empty row after update) in the cache and save them to a new file as reference
-                    }
+                   // companiesNotPresentRow.createCell(cellIndex).setCellValue(String.valueOf(cell)); // read from input sheet and create the cell with exact value
 
                 }
             }
-
-
         }
 
         outputDDWorkbook.write(fileOutputStream);
+        outputDDWorkbook.close();
+
+        companiesNotPresentDDWorkbook.write(companiesNotPresentOutputStream);
+        companiesNotPresentDDWorkbook.close();
+
         inputDDWorkbook.close();
         fileInputStream.close();
+        //companiesNotPresentOutputStream.close();
+
     }
 
     private void backupFileBeforeOverriding(File source, File dest) throws IOException {

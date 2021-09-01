@@ -148,7 +148,7 @@ public class ExcelUtil {
         reader.close();
     }
 
-    public static void convertXLXSFileToCSV(File xlsxFile, int sheetIdx, File outputFilePath) throws Exception {
+    public static void convertXLXSFileToCSV(File xlsxFile, int sheetIdx, File outputFilePath, String fileName) throws Exception {
         FileInputStream fileInStream = new FileInputStream(xlsxFile);
 
         // Open the xlsx and get the requested sheet from the workbook
@@ -156,7 +156,7 @@ public class ExcelUtil {
         XSSFSheet selSheet = workBook.getSheetAt(sheetIdx);
 
         // OpenCSV writer object to create CSV file
-        FileWriter myCSV= new FileWriter(outputFilePath  + "/" +  "convertedCSVFile" + System.currentTimeMillis()+ ".csv");
+        FileWriter myCSV= new FileWriter(outputFilePath  + "/" +  fileName);
 
         // Iterate through all the rows in the selected sheet
         Iterator<Row> rowIterator = selSheet.iterator();
@@ -171,20 +171,20 @@ public class ExcelUtil {
             while (cellIterator.hasNext()) {
                 Cell cell = cellIterator.next();
                 if (sb.length() != 0) {
-                    sb.append(",");
+                    sb.append(FILE_DELIMITER);
                 }
 
                 // If you are using poi 4.0 or over, change it to
                 // cell.getCellType
                 switch (cell.getCellTypeEnum()) {
                     case STRING:
-                        sb.append(cell.getStringCellValue());
+                        sb.append("\"" +trimWhiteSpaces(cell.getStringCellValue())+"\"");
                         break;
                     case NUMERIC:
-                        sb.append(cell.getNumericCellValue());
+                        sb.append("\"" +cell.getNumericCellValue()+"\"");
                         break;
                     case BOOLEAN:
-                        sb.append(cell.getBooleanCellValue());
+                        sb.append("\"" +cell.getBooleanCellValue()+"\"");
                         break;
                     default:
                 }
