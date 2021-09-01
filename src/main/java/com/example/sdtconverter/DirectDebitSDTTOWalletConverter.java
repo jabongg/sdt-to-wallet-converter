@@ -258,10 +258,12 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
 
     @Override
     public void walletConverter() throws Exception {
-
         // DIRECT DEBIT
+        //step 1: create input_pb file (by replacing with detokenized bankroutingnumber) to upload to s3 bucket
         createDirectDebitInputFileWithDetokenizedBankCode();
-        directDebitSDTToWalletConversion();
+
+        // step2 : create query to update bankwalletid received from output_pb file s3 bucket
+        directDebitSDTToWalletConversionQueryBuild();
 
 
     }
@@ -418,7 +420,7 @@ public class DirectDebitSDTTOWalletConverter implements WalletConverter {
     }
 
 
-    private static void directDebitSDTToWalletConversion() throws Exception {
+    private static void directDebitSDTToWalletConversionQueryBuild() throws Exception {
 
         // read from user home directory : input
         String path = System.getProperty("user.home") + File.separator + "Desktop";
